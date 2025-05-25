@@ -103,7 +103,7 @@ export default function AdminLayout({
                 className="w-full justify-start px-2"
                 onClick={handleLogout}
               >
-                <LogOut className="mr-2 h-4 w-4" />
+                <LogOut className="h-4 w-4" />
                 Logout
               </Button>
             </div>
@@ -135,7 +135,7 @@ export default function AdminLayout({
               className="w-full justify-start"
               onClick={handleLogout}
             >
-              <LogOut className="mr-2 h-4 w-4" />
+              <LogOut className="h-4 w-4" />
               Logout
             </Button>
           </div>

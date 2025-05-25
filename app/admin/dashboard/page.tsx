@@ -58,7 +58,7 @@ export default function DashboardPage() {
   const chartConfig = {
     total: {
       label: "Revenue",
-      color: "hsl(var(--chart-1))",
+      color: "hsl(var(--chart-3))",
     },
   };
 
