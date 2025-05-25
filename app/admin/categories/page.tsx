@@ -32,7 +32,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useFormik } from "formik";
 import { categorySchema } from "@/lib/validation-schemas";
-import { Plus, MoreHorizontal, Search, Edit, Trash, Eye } from "lucide-react";
+import { Plus, MoreHorizontal, Search, Edit, Trash } from "lucide-react";
 import Image from "next/image";
 import { ImageUpload } from "@/components/shared/image-upload";
 import Placeholder from "@/public/placeholder.jpg";
@@ -89,7 +89,6 @@ export default function CategoriesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
@@ -103,11 +102,6 @@ export default function CategoriesPage() {
   const handleEdit = (category: Category) => {
     setSelectedCategory(category);
     setIsEditDialogOpen(true);
-  };
-
-  const handleView = (category: Category) => {
-    setSelectedCategory(category);
-    setIsViewDialogOpen(true);
   };
 
   const handleDelete = (id: string) => {
@@ -277,10 +271,6 @@ export default function CategoriesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleView(category)}>
-                          <Eye className="h-4 w-4" />
-                          View
-                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleEdit(category)}>
                           <Edit className="h-4 w-4" />
                           Edit
@@ -352,45 +342,6 @@ export default function CategoriesPage() {
               <Button type="submit">Save Changes</Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* View Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Category Details</DialogTitle>
-            <DialogDescription>View category information</DialogDescription>
-          </DialogHeader>
-
-          {selectedCategory && (
-            <div className="space-y-4">
-              <div className="relative w-full h-48 rounded-lg overflow-hidden border">
-                <Image
-                  src={selectedCategory.image || Placeholder}
-                  alt={selectedCategory.name}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div>
-                  <Label className="text-sm font-medium">Name</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedCategory.name}
-                  </p>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium">Created</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(selectedCategory.created_at).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
 
