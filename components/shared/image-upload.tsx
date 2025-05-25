@@ -10,7 +10,7 @@ import { Upload, Trash2, Camera } from "lucide-react";
 import Image from "next/image";
 
 interface ImageUploadProps {
-  value?: string;
+  value?: string | null;
   onChange: (value: string) => void;
   onRemove: () => void;
   label?: string;
@@ -102,7 +102,7 @@ export function ImageUpload({
           <>
             <div className="relative w-16 h-16 rounded-md overflow-hidden border">
               <Image
-                src={value || "/placeholder.jpeg"}
+                src={value || "/placeholder.jpg"}
                 alt="Preview"
                 fill
                 className="object-cover"
