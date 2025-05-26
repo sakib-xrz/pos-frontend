@@ -460,7 +460,7 @@ export default function UsersPage() {
                     {new Date(user.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
+                    <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
                           <MoreHorizontal className="h-4 w-4" />
@@ -529,7 +529,7 @@ export default function UsersPage() {
                           {user.name.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
-                      <DropdownMenu>
+                      <DropdownMenu modal={false}>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"

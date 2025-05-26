@@ -15,8 +15,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -41,6 +39,17 @@ import {
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Plus, MoreHorizontal, Search, Edit, Trash, Store } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Card, CardContent } from "@/components/ui/card";
 
 // Validation schemas
 const createShopSchema = Yup.object({
@@ -136,6 +145,8 @@ export default function ShopsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [shopToDelete, setShopToDelete] = useState<Shop | null>(null);
 
   const filteredShops = shops.filter((shop) => {
     const matchesSearch =
@@ -155,17 +166,20 @@ export default function ShopsPage() {
     setIsUpdateDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this shop? This action cannot be undone."
-      )
-    ) {
-      setShops(shops.filter((shop) => shop.id !== id));
-      //   toast({
-      //     title: "Shop deleted",
-      //     description: "The shop has been successfully deleted.",
-      //   });
+  const handleDeleteClick = (shop: Shop) => {
+    setShopToDelete(shop);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (shopToDelete) {
+      setShops(shops.filter((shop) => shop.id !== shopToDelete.id));
+      setDeleteDialogOpen(false);
+      setShopToDelete(null);
+      // toast({
+      //   title: "Shop deleted",
+      //   description: "The shop and all associated data have been deleted.",
+      // });
     }
   };
 
@@ -283,6 +297,68 @@ export default function ShopsPage() {
       </Badge>
     );
   };
+
+  const ShopCard = ({ shop }: { shop: Shop }) => (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-3">
+            <Store className="h-8 w-8 text-muted-foreground" />
+            <div>
+              <h3 className="font-semibold text-base">{shop.name}</h3>
+              {shop.branch_name && (
+                <p className="text-sm text-muted-foreground">
+                  {shop.branch_name}
+                </p>
+              )}
+            </div>
+          </div>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleUpdate(shop)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Update Plan
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-red-600"
+                onClick={() => handleDeleteClick(shop)}
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                Delete Shop
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Type</span>
+            <span className="font-medium">{shop.type}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Subscription</span>
+            {getSubscriptionBadge(shop.subscription_plan)}
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Status</span>
+            {getStatusBadge(shop.is_active)}
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Created</span>
+            <span className="text-sm">
+              {new Date(shop.created_at).toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="p-6">
@@ -583,8 +659,8 @@ export default function ShopsPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="border rounded-md">
+      {/* Table for large screens, Cards for small screens */}
+      <div className="hidden md:block border rounded-md">
         <Table>
           <TableHeader>
             <TableRow>
@@ -631,7 +707,7 @@ export default function ShopsPage() {
                     {new Date(shop.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
+                    <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
                           <MoreHorizontal className="h-4 w-4" />
@@ -639,16 +715,13 @@ export default function ShopsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleUpdate(shop)}>
                           <Edit className="mr-2 h-4 w-4" />
-                          Update Subscription
+                          Update Plan
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-red-600"
-                          onClick={() => handleDelete(shop.id)}
+                          onClick={() => handleDeleteClick(shop)}
                         >
                           <Trash className="mr-2 h-4 w-4" />
                           Delete Shop
@@ -663,14 +736,25 @@ export default function ShopsPage() {
         </Table>
       </div>
 
+      {/* Card view for small screens */}
+      <div className="md:hidden grid grid-cols-1 gap-4">
+        {filteredShops.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No shops found
+          </div>
+        ) : (
+          filteredShops.map((shop) => <ShopCard key={shop.id} shop={shop} />)
+        )}
+      </div>
+
       {/* Update Dialog */}
       <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
         <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
           <form onSubmit={updateFormik.handleSubmit}>
             <DialogHeader>
-              <DialogTitle>Update Shop Subscription</DialogTitle>
+              <DialogTitle>Update Shop Plan</DialogTitle>
               <DialogDescription>
-                Update subscription plan and status for {selectedShop?.name}.
+                Update plan for {selectedShop?.name}.
               </DialogDescription>
             </DialogHeader>
 
@@ -721,6 +805,35 @@ export default function ShopsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Alert Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              shop &quot;{shopToDelete?.name}&quot; and all associated data
+              including:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>All products and inventory</li>
+                <li>All orders and transactions</li>
+                <li>All user accounts</li>
+                <li>All settings and configurations</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Shop
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

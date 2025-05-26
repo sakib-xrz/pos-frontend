@@ -259,7 +259,7 @@ export default function CategoriesPage() {
                     className="object-cover group-hover:scale-105 transition-transform duration-200"
                   />
                   <div className="absolute top-2 right-2">
-                    <DropdownMenu>
+                    <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="secondary"
