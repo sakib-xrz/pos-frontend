@@ -14,6 +14,7 @@ import {
   Settings,
   LogOut,
   Menu,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -48,6 +49,11 @@ const navItems = [
     href: "/admin/settings",
     label: "Settings",
     icon: <Settings className="mr-2 h-4 w-4" />,
+  },
+  {
+    href: "/change-password",
+    label: "Change Password",
+    icon: <Lock className="mr-2 h-4 w-4" />,
   },
 ];
 

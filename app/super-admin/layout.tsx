@@ -4,7 +4,14 @@ import type React from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Store, LogOut, Menu, Shield } from "lucide-react";
+import {
+  LayoutDashboard,
+  Store,
+  LogOut,
+  Menu,
+  Shield,
+  Lock,
+} from "lucide-react";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -18,6 +25,11 @@ const navItems = [
     href: "/super-admin/shops",
     label: "Shops",
     icon: <Store className="mr-2 h-4 w-4" />,
+  },
+  {
+    href: "/change-password",
+    label: "Change Password",
+    icon: <Lock className="mr-2 h-4 w-4" />,
   },
 ];
 

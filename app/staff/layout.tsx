@@ -5,14 +5,7 @@ import type React from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-  Home,
-  ShoppingCart,
-  Clock,
-  Settings,
-  LogOut,
-  Menu,
-} from "lucide-react";
+import { Home, LogOut, Menu, Lock } from "lucide-react";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -35,19 +28,9 @@ export function StaffLayout({ children }: StaffLayoutProps) {
       icon: <Home className="mr-2 h-4 w-4" />,
     },
     {
-      href: "/staff/orders",
-      label: "Orders",
-      icon: <ShoppingCart className="mr-2 h-4 w-4" />,
-    },
-    {
-      href: "/staff/history",
-      label: "History",
-      icon: <Clock className="mr-2 h-4 w-4" />,
-    },
-    {
-      href: "/staff/settings",
-      label: "Settings",
-      icon: <Settings className="mr-2 h-4 w-4" />,
+      href: "/change-password",
+      label: "Change Password",
+      icon: <Lock className="mr-2 h-4 w-4" />,
     },
   ];
 
