@@ -39,6 +39,7 @@ interface DecodedUser {
   id: string;
   email: string;
   role: string;
+  shop_id: string;
   exp: number;
   iat: number;
   [key: string]: unknown;
