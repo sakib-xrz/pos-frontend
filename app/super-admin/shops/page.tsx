@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,7 +38,15 @@ import {
 } from "@/components/ui/select";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Plus, MoreHorizontal, Search, Edit, Trash, Store } from "lucide-react";
+import {
+  Plus,
+  MoreHorizontal,
+  Search,
+  Edit,
+  Trash,
+  Store,
+  Loader2,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,13 +58,23 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  useCreateShopMutation,
+  useDeleteShopMutation,
+  useGetShopsQuery,
+  useUpdateSubscriptionMutation,
+} from "@/redux/features/shop/shopApi";
+import { sanitizeParams } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
+import CustomPagination from "@/components/shared/custom-pagination";
+import { toast } from "sonner";
 
 // Validation schemas
 const createShopSchema = Yup.object({
   name: Yup.string().required("Shop name is required"),
   branch_name: Yup.string(),
   type: Yup.string()
-    .oneOf(["RESTAURANT", "RETAIL", "CAFE"])
+    .oneOf(["RESTAURANT", "PHARMACY"])
     .required("Shop type is required"),
   subscription_plan: Yup.string()
     .oneOf(["ONE_MONTH", "SIX_MONTHS", "ONE_YEAR"])
@@ -81,46 +99,6 @@ const updateShopSchema = Yup.object({
   is_active: Yup.boolean().required("Active status is required"),
 });
 
-// Dummy data
-const dummyShops = [
-  {
-    id: "shop1",
-    name: "Demo Restaurant",
-    branch_name: "Main Branch",
-    type: "RESTAURANT",
-    subscription_plan: "ONE_YEAR",
-    subscription_start: "2023-01-15T10:30:00Z",
-    subscription_end: "2024-01-15T10:30:00Z",
-    is_active: true,
-    created_at: "2023-01-15T10:30:00Z",
-    updated_at: "2023-01-15T10:30:00Z",
-  },
-  {
-    id: "shop2",
-    name: "Pizza Palace",
-    branch_name: "Downtown",
-    type: "RESTAURANT",
-    subscription_plan: "SIX_MONTHS",
-    subscription_start: "2023-06-01T10:30:00Z",
-    subscription_end: "2023-12-01T10:30:00Z",
-    is_active: true,
-    created_at: "2023-06-01T10:30:00Z",
-    updated_at: "2023-06-01T10:30:00Z",
-  },
-  {
-    id: "shop3",
-    name: "Coffee Corner",
-    branch_name: "Mall Branch",
-    type: "CAFE",
-    subscription_plan: "ONE_MONTH",
-    subscription_start: "2023-11-01T10:30:00Z",
-    subscription_end: "2023-12-01T10:30:00Z",
-    is_active: false,
-    created_at: "2023-11-01T10:30:00Z",
-    updated_at: "2023-11-15T10:30:00Z",
-  },
-];
-
 type Shop = {
   id: string;
   name: string;
@@ -135,31 +113,55 @@ type Shop = {
 };
 
 export default function ShopsPage() {
-  const [shops, setShops] = useState<Shop[]>(dummyShops);
+  // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
-  const [subscriptionFilter, setSubscriptionFilter] = useState<string | null>(
-    null
-  );
-  const [statusFilter, setStatusFilter] = useState<boolean | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [subscriptionFilter, setSubscriptionFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+
+  // Debounced search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
+  // Build params for API call
+  const params = {
+    page: currentPage,
+    limit: pageSize,
+    search: debouncedSearchQuery,
+    type: typeFilter,
+    subscription_plan: subscriptionFilter,
+    is_active: statusFilter,
+  };
+
+  const {
+    data: shopData,
+    isLoading,
+    error,
+  } = useGetShopsQuery(sanitizeParams(params));
+
+  const [createShop, { isLoading: isCreating }] = useCreateShopMutation();
+  const [deleteShop, { isLoading: isDeleting }] = useDeleteShopMutation();
+  const [updateSubscription, { isLoading: isUpdating }] =
+    useUpdateSubscriptionMutation();
+
+  const shops = shopData?.data || [];
+  const totalPages = shopData?.meta?.totalPages || 1;
+  const totalItems = shopData?.meta?.total || 0;
+
+  // Dialog states
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [shopToDelete, setShopToDelete] = useState<Shop | null>(null);
 
-  const filteredShops = shops.filter((shop) => {
-    const matchesSearch =
-      shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shop.branch_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = typeFilter ? shop.type === typeFilter : true;
-    const matchesSubscription = subscriptionFilter
-      ? shop.subscription_plan === subscriptionFilter
-      : true;
-    const matchesStatus =
-      statusFilter !== null ? shop.is_active === statusFilter : true;
-    return matchesSearch && matchesType && matchesSubscription && matchesStatus;
-  });
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, typeFilter, subscriptionFilter, statusFilter]);
 
   const handleUpdate = (shop: Shop) => {
     setSelectedShop(shop);
@@ -171,92 +173,124 @@ export default function ShopsPage() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    if (shopToDelete) {
-      setShops(shops.filter((shop) => shop.id !== shopToDelete.id));
+  const handleDeleteConfirm = async () => {
+    if (!shopToDelete?.id) {
+      toast.error("Invalid shop selected for deletion");
+      return;
+    }
+
+    try {
+      await deleteShop(shopToDelete.id).unwrap();
       setDeleteDialogOpen(false);
       setShopToDelete(null);
-      // toast({
-      //   title: "Shop deleted",
-      //   description: "The shop and all associated data have been deleted.",
-      // });
+      toast.success("Shop deleted successfully");
+    } catch (error: any) {
+      if (error?.data?.message) {
+        toast.error(error.data.message);
+      } else if (error?.message) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to delete shop. Please try again.");
+      }
+      console.error("Delete shop error:", error);
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleTypeFilterChange = (value: string) => {
+    setTypeFilter(value === "all" ? "" : value);
+  };
+
+  const handleSubscriptionFilterChange = (value: string) => {
+    setSubscriptionFilter(value === "all" ? "" : value);
+  };
+
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value === "all" ? "" : value);
   };
 
   const createFormik = useFormik({
     initialValues: {
-      name: "",
-      branch_name: "",
+      name: "BFC",
+      branch_name: "Mirpur Branch",
       type: "RESTAURANT",
       subscription_plan: "ONE_MONTH",
-      admin_name: "",
-      admin_email: "",
-      admin_password: "",
-      display_name: "",
-      email: "",
+      admin_name: "BFC Admin",
+      admin_email: "bfc@gmail.com",
+      admin_password: "123456",
+      display_name: "BFC",
+      email: "bfc@gmail.com",
     },
     validationSchema: createShopSchema,
-    onSubmit: (values) => {
-      const newShop: Shop = {
-        id: Math.random().toString(36).substring(2, 9),
-        name: values.name,
-        branch_name: values.branch_name || null,
-        type: values.type,
-        subscription_plan: values.subscription_plan,
-        subscription_start: new Date().toISOString(),
-        subscription_end: new Date(
-          Date.now() +
-            (values.subscription_plan === "ONE_MONTH"
-              ? 30
-              : values.subscription_plan === "SIX_MONTHS"
-                ? 180
-                : 365) *
-              24 *
-              60 *
-              60 *
-              1000
-        ).toISOString(),
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+    onSubmit: async (values) => {
+      try {
+        const payload = {
+          name: values.name,
+          branch_name: values.branch_name || null,
+          type: values.type,
+          subscription_plan: values.subscription_plan,
+          admin_name: values.admin_name,
+          admin_email: values.admin_email,
+          admin_password: values.admin_password,
+          settings: {
+            display_name: values.display_name,
+            email: values.email,
+          },
+        };
 
-      setShops([...shops, newShop]);
-      setIsCreateDialogOpen(false);
-      createFormik.resetForm();
-      //   toast({
-      //     title: "Shop created",
-      //     description: "New shop has been successfully created.",
-      //   });
+        await createShop(payload).unwrap();
+        setIsCreateDialogOpen(false);
+        createFormik.resetForm();
+        toast.success("Shop created successfully");
+      } catch (error: any) {
+        if (error?.data?.message) {
+          toast.error(error.data.message);
+        } else if (error?.message) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to create shop. Please try again.");
+        }
+        console.error("Create shop error:", error);
+      }
     },
   });
 
   const updateFormik = useFormik({
     initialValues: {
-      subscription_plan: selectedShop?.subscription_plan || "ONE_MONTH",
-      is_active: selectedShop?.is_active || true,
+      subscription_plan: selectedShop?.subscription_plan,
+      is_active: selectedShop?.is_active,
     },
     validationSchema: updateShopSchema,
     enableReinitialize: true,
-    onSubmit: (values) => {
-      setShops(
-        shops.map((shop) =>
-          shop.id === selectedShop?.id
-            ? {
-                ...shop,
-                subscription_plan: values.subscription_plan,
-                is_active: values.is_active,
-                updated_at: new Date().toISOString(),
-              }
-            : shop
-        )
-      );
-
-      setIsUpdateDialogOpen(false);
-      // toast({
-      //     title: "Shop updated",
-      //     description: "Shop subscription has been successfully updated.",
-      // });
+    onSubmit: async (values) => {
+      try {
+        await updateSubscription({
+          id: selectedShop?.id,
+          data: {
+            subscription_plan: values.subscription_plan,
+            is_active: values.is_active,
+          },
+        }).unwrap();
+        setIsUpdateDialogOpen(false);
+        updateFormik.resetForm();
+        toast.success("Shop updated successfully");
+      } catch (error: any) {
+        if (error?.data?.message) {
+          toast.error(error.data.message);
+        } else if (error?.message) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to update shop. Please try again.");
+        }
+        console.error("Update shop error:", error);
+      }
     },
   });
 
@@ -360,10 +394,62 @@ export default function ShopsPage() {
     </Card>
   );
 
+  // Loading component
+  const LoadingState = () => (
+    <div className="flex items-center justify-center py-8">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <span className="ml-2 text-muted-foreground">Loading shops...</span>
+    </div>
+  );
+
+  // Error component
+  const ErrorState = () => (
+    <div className="text-center py-8">
+      <p className="text-red-500 mb-2">Failed to load shops</p>
+      <Button variant="outline" onClick={() => window.location.reload()}>
+        Try Again
+      </Button>
+    </div>
+  );
+
+  // Empty state component
+  const EmptyState = () => (
+    <div className="text-center py-8 text-muted-foreground">
+      {debouncedSearchQuery ||
+      typeFilter ||
+      subscriptionFilter ||
+      statusFilter ? (
+        <div>
+          <p className="mb-2">No shops found matching your filters</p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSearchQuery("");
+              setTypeFilter("");
+              setSubscriptionFilter("");
+              setStatusFilter("");
+            }}
+          >
+            Clear Filters
+          </Button>
+        </div>
+      ) : (
+        <p>No shops found</p>
+      )}
+    </div>
+  );
+
   return (
     <div className="p-6">
       <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
-        <h1 className="text-2xl font-bold">Shop Management</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Shop Management</h1>
+          {!isLoading && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {totalItems} shop{totalItems !== 1 ? "s" : ""} found
+            </p>
+          )}
+        </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -576,7 +662,9 @@ export default function ShopsPage() {
               </div>
 
               <DialogFooter>
-                <Button type="submit">Create Shop</Button>
+                <Button type="submit" disabled={isCreating}>
+                  {isCreating ? "Creating..." : "Create Shop"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -592,16 +680,14 @@ export default function ShopsPage() {
             placeholder="Search shops..."
             className="pl-8"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
           />
         </div>
 
         <div className="flex flex-wrap gap-2">
           <Select
             value={typeFilter || "all"}
-            onValueChange={(value) =>
-              setTypeFilter(value === "all" ? null : value)
-            }
+            onValueChange={handleTypeFilterChange}
           >
             <SelectTrigger className="sm:w-[180px]">
               <SelectValue placeholder="All types" />
@@ -609,16 +695,13 @@ export default function ShopsPage() {
             <SelectContent>
               <SelectItem value="all">All types</SelectItem>
               <SelectItem value="RESTAURANT">Restaurant</SelectItem>
-              <SelectItem value="RETAIL">Retail</SelectItem>
-              <SelectItem value="CAFE">Cafe</SelectItem>
+              <SelectItem value="PHARMACY">Pharmacy</SelectItem>
             </SelectContent>
           </Select>
 
           <Select
             value={subscriptionFilter || "all"}
-            onValueChange={(value) =>
-              setSubscriptionFilter(value === "all" ? null : value)
-            }
+            onValueChange={handleSubscriptionFilterChange}
           >
             <SelectTrigger className="sm:w-[180px]">
               <SelectValue placeholder="All plans" />
@@ -632,119 +715,112 @@ export default function ShopsPage() {
           </Select>
 
           <Select
-            value={
-              statusFilter === null
-                ? "all"
-                : statusFilter
-                  ? "active"
-                  : "inactive"
-            }
-            onValueChange={(value) => {
-              if (value === "all") {
-                setStatusFilter(null);
-              } else {
-                setStatusFilter(value === "active");
-              }
-            }}
+            value={statusFilter || "all"}
+            onValueChange={handleStatusFilterChange}
           >
             <SelectTrigger className="sm:w-[180px]">
               <SelectValue placeholder="All status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="true">Active</SelectItem>
+              <SelectItem value="false">Inactive</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* Table for large screens, Cards for small screens */}
-      <div className="hidden md:block border rounded-md bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Shop</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Subscription</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredShops.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  No shops found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredShops.map((shop) => (
-                <TableRow key={shop.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <div className="font-medium">{shop.name}</div>
-                        {shop.branch_name && (
-                          <div className="text-sm text-muted-foreground">
-                            {shop.branch_name}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{shop.type}</TableCell>
-                  <TableCell>
-                    {getSubscriptionBadge(shop.subscription_plan)}
-                  </TableCell>
-                  <TableCell>{getStatusBadge(shop.is_active)}</TableCell>
-                  <TableCell>
-                    {new Date(shop.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu modal={false}>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleUpdate(shop)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Update Plan
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => handleDeleteClick(shop)}
-                        >
-                          <Trash className="mr-2 h-4 w-4" />
-                          Delete Shop
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+      {/* Content */}
+      {error ? (
+        <ErrorState />
+      ) : isLoading ? (
+        <LoadingState />
+      ) : shops.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <>
+          {/* Table for large screens */}
+          <div className="hidden md:block border rounded-md bg-white">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Shop</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Subscription</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Card view for small screens */}
-      <div className="md:hidden grid grid-cols-1 gap-4">
-        {filteredShops.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No shops found
+              </TableHeader>
+              <TableBody>
+                {shops.map((shop: Shop) => (
+                  <TableRow key={shop.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <div className="font-medium">{shop.name}</div>
+                          {shop.branch_name && (
+                            <div className="text-sm text-muted-foreground">
+                              {shop.branch_name}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{shop.type}</TableCell>
+                    <TableCell>
+                      {getSubscriptionBadge(shop.subscription_plan)}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(shop.is_active)}</TableCell>
+                    <TableCell>
+                      {new Date(shop.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleUpdate(shop)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Update Plan
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => handleDeleteClick(shop)}
+                          >
+                            <Trash className="mr-2 h-4 w-4" />
+                            Delete Shop
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        ) : (
-          filteredShops.map((shop) => <ShopCard key={shop.id} shop={shop} />)
-        )}
-      </div>
+
+          {/* Card view for small screens */}
+          <div className="md:hidden grid grid-cols-1 gap-4">
+            {shops.map((shop: Shop) => (
+              <ShopCard key={shop.id} shop={shop} />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <CustomPagination
+              params={{ page: currentPage }}
+              totalPages={totalPages}
+              handlePageChange={handlePageChange}
+            />
+          )}
+        </>
+      )}
 
       {/* Update Dialog */}
       <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
@@ -799,7 +875,9 @@ export default function ShopsPage() {
             </div>
 
             <DialogFooter>
-              <Button type="submit">Update Shop</Button>
+              <Button type="submit" disabled={isUpdating}>
+                {isUpdating ? "Updating..." : "Update Plan"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -827,8 +905,9 @@ export default function ShopsPage() {
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               className="bg-red-600 hover:bg-red-700"
+              disabled={isDeleting}
             >
-              Delete Shop
+              {isDeleting ? "Deleting..." : "Delete Shop"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
