@@ -290,7 +290,7 @@ export default function UsersPage() {
               Add User
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <form onSubmit={addFormik.handleSubmit}>
               <DialogHeader>
                 <DialogTitle>Add New User</DialogTitle>
@@ -611,7 +611,7 @@ export default function UsersPage() {
       </div>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
           <form onSubmit={editFormik.handleSubmit}>
             <DialogHeader>
               <DialogTitle>Edit User</DialogTitle>
@@ -692,7 +692,7 @@ export default function UsersPage() {
         open={isResetPasswordDialogOpen}
         onOpenChange={setIsResetPasswordDialogOpen}
       >
-        <DialogContent>
+        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
           <form onSubmit={resetPasswordFormik.handleSubmit}>
             <DialogHeader>
               <DialogTitle>Reset Password</DialogTitle>

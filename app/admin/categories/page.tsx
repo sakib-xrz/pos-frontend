@@ -302,7 +302,10 @@ export default function CategoriesPage() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent
+          className="max-w-md"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <form onSubmit={editFormik.handleSubmit}>
             <DialogHeader>
               <DialogTitle>Edit Category</DialogTitle>

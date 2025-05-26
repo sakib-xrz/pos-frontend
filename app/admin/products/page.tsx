@@ -367,7 +367,7 @@ export default function ProductsPage() {
               Add Product
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <form onSubmit={addFormik.handleSubmit}>
               <DialogHeader>
                 <DialogTitle>Add New Product</DialogTitle>
@@ -624,7 +624,7 @@ export default function ProductsPage() {
       </div>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
           <form onSubmit={editFormik.handleSubmit}>
             <DialogHeader>
               <DialogTitle>Edit Product</DialogTitle>

@@ -441,7 +441,10 @@ export default function OrdersPage() {
       </div>
 
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent
+          className="max-w-md"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
             <DialogDescription>Order #{selectedOrder?.id}</DialogDescription>
