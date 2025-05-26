@@ -17,7 +17,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface LoginFormProps {
-  userType: "staff" | "admin";
+  userType: "super-admin" | "admin" | "staff";
 }
 
 export function LoginForm({ userType }: LoginFormProps) {
@@ -49,12 +49,24 @@ export function LoginForm({ userType }: LoginFormProps) {
   });
 
   return (
-    <Card className="w-[350px]">
+    <Card className="max-w-md">
       <CardHeader>
-        <CardTitle>{userType === "admin" ? "Admin" : "Staff"} Login</CardTitle>
+        <CardTitle>
+          {userType === "super-admin"
+            ? "Super Admin"
+            : userType === "admin"
+              ? "Admin"
+              : "Staff"}{" "}
+          Login
+        </CardTitle>
         <CardDescription>
           Enter your credentials to access the{" "}
-          {userType === "admin" ? "admin" : "staff"} panel
+          {userType === "super-admin"
+            ? "super admin"
+            : userType === "admin"
+              ? "admin"
+              : "staff"}{" "}
+          panel
         </CardDescription>
       </CardHeader>
       <form onSubmit={formik.handleSubmit}>
