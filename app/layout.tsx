@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import GlobalProvider from "@/components/shared/global-provider";
 
 export const metadata: Metadata = {
   title: "Dokannama - Complete Point of Sale Solution",
@@ -14,7 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <GlobalProvider>{children}</GlobalProvider>
+      </body>
     </html>
   );
 }

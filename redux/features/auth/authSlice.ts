@@ -35,7 +35,7 @@ export const useAuthToken = (): string | null => {
   return useSelector((state: RootState) => state.auth.token);
 };
 
-interface DecodedUser {
+export interface DecodedUser {
   id: string;
   email: string;
   role: string;

@@ -14,15 +14,19 @@ import { Label } from "@/components/ui/label";
 import { useFormik } from "formik";
 import { loginSchema } from "@/lib/validation-schemas";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import userLogin from "@/services/auth/userLogin";
+import { useDispatch } from "react-redux";
+import { setToken } from "@/redux/features/auth/authSlice";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 interface LoginFormProps {
   userType: "super-admin" | "admin" | "staff";
 }
 
 export function LoginForm({ userType }: LoginFormProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
+  const dispatch = useDispatch();
+  const [error, setError] = useState("");
 
   const formik = useFormik({
     initialValues: {
@@ -31,20 +35,16 @@ export function LoginForm({ userType }: LoginFormProps) {
     },
     validationSchema: loginSchema,
     onSubmit: async (values) => {
-      console.log(values);
-      setIsLoading(true);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Redirect based on user type
-      if (userType === "admin") {
-        router.push("/admin/dashboard");
-      } else {
-        router.push("/staff/pos");
+      try {
+        const response = await userLogin(values);
+        const access_token = response?.data?.access_token;
+        dispatch(setToken({ token: access_token }));
+        toast.success("Logged in successfully");
+      } catch (error) {
+        formik.resetForm();
+        // @ts-expect-error Error message is a string
+        setError(error.message);
       }
-
-      setIsLoading(false);
     },
   });
 
@@ -100,10 +100,25 @@ export function LoginForm({ userType }: LoginFormProps) {
               <p className="text-sm text-red-500">{formik.errors.password}</p>
             )}
           </div>
+
+          {error && (
+            <Alert
+              variant="destructive"
+              className="mb-4 bg-destructive/10 text-center"
+            >
+              <AlertDescription className="font-medium">
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Logging in..." : "Login"}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={formik.isSubmitting}
+          >
+            {formik.isSubmitting ? "Logging in..." : "Login"}
           </Button>
         </CardFooter>
       </form>
