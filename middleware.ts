@@ -25,8 +25,12 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
+    const role = request.url.split("/").slice(3, 4)[0];
+
     // Redirect to home page if trying to access protected routes without token
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(
+      new URL(`/${role}/login?next=${pathname}`, request.url)
+    );
   }
 
   let decodedData: CustomJwtPayload | null = null;

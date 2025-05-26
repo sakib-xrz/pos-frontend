@@ -41,10 +41,6 @@ export default function SuperAdminLayout({
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  const handleLogout = () => {
-    router.push("/");
-  };
-
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Mobile Navigation */}
@@ -86,7 +82,7 @@ export default function SuperAdminLayout({
               <Button
                 variant="destructive"
                 className="w-full justify-start px-2"
-                onClick={handleLogout}
+                onClick={() => router.push("/logout")}
               >
                 <LogOut className="h-4 w-4" />
                 Logout
@@ -119,7 +115,7 @@ export default function SuperAdminLayout({
             <Button
               variant="destructive"
               className="w-full justify-start"
-              onClick={handleLogout}
+              onClick={() => router.push("/logout")}
             >
               <LogOut className="h-4 w-4" />
               Logout

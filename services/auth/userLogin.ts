@@ -36,12 +36,13 @@ const userLogin = async (payload: UserLoginPayload) => {
       const role = decodedToken?.role;
 
       await setTokenAndRedirect(access_token, {
-        redirect:
-          existingRedirectURL || role === "SUPER_ADMIN"
+        redirect: existingRedirectURL
+          ? existingRedirectURL
+          : role === "SUPER_ADMIN"
             ? "/super-admin/dashboard"
             : role === "ADMIN"
               ? "/admin/dashboard"
-              : "/pos",
+              : "/staff/pos",
       });
     }
 

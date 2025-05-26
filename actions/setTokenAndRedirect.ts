@@ -12,11 +12,13 @@ const setTokenAndRedirect = async (
   token: string,
   option: SetTokenAndRedirectOption
 ) => {
+  console.log(option);
   cookies().set(AUTH_TOKEN_KEY, token, {
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
 
   if (option && option.redirect) {
+    console.log(option.redirect);
     redirect(option.redirect);
   }
 };

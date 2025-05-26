@@ -17,10 +17,6 @@ export function StaffLayout({ children }: StaffLayoutProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  const handleLogout = () => {
-    router.push("/");
-  };
-
   const navItems = [
     {
       href: "/staff/pos",
@@ -72,7 +68,7 @@ export function StaffLayout({ children }: StaffLayoutProps) {
               <Button
                 variant="ghost"
                 className="w-full justify-start px-2"
-                onClick={handleLogout}
+                onClick={() => router.push("/logout")}
               >
                 <LogOut className="h-4 w-4" />
                 Logout
@@ -104,7 +100,7 @@ export function StaffLayout({ children }: StaffLayoutProps) {
             <Button
               variant="ghost"
               className="w-full justify-start"
-              onClick={handleLogout}
+              onClick={() => router.push("/logout")}
             >
               <LogOut className="h-4 w-4" />
               Logout
