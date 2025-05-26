@@ -86,7 +86,7 @@ export function ImageUpload({
   };
 
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`space-y-1 ${className}`}>
       {label && <Label>{label}</Label>}
 
       <div className="flex items-center gap-2">

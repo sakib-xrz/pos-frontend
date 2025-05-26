@@ -70,8 +70,8 @@ export function LoginForm({ userType }: LoginFormProps) {
         </CardDescription>
       </CardHeader>
       <form onSubmit={formik.handleSubmit}>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
+        <CardContent className="space-y-2">
+          <div className="space-y-1">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
@@ -86,7 +86,7 @@ export function LoginForm({ userType }: LoginFormProps) {
               <p className="text-sm text-red-500">{formik.errors.email}</p>
             )}
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"

@@ -362,12 +362,12 @@ export default function ShopsPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
+      <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
         <h1 className="text-2xl font-bold">Shop Management</h1>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="h-4 w-4" />
               Create Shop
             </Button>
           </DialogTrigger>
@@ -383,13 +383,13 @@ export default function ShopsPage() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-4 py-4">
+              <div className="grid gap-2 py-4">
                 {/* Shop Information */}
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <h3 className="text-lg font-medium">Shop Information</h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="grid gap-2">
+                    <div className="grid gap-1">
                       <Label htmlFor="name">Shop Name</Label>
                       <Input
                         id="name"
@@ -407,7 +407,7 @@ export default function ShopsPage() {
                         )}
                     </div>
 
-                    <div className="grid gap-2">
+                    <div className="grid gap-1">
                       <Label htmlFor="branch_name">
                         Branch Name (Optional)
                       </Label>
@@ -423,7 +423,7 @@ export default function ShopsPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="grid gap-2">
+                    <div className="grid gap-1">
                       <Label htmlFor="type">Shop Type</Label>
                       <Select
                         name="type"
@@ -443,7 +443,7 @@ export default function ShopsPage() {
                       </Select>
                     </div>
 
-                    <div className="grid gap-2">
+                    <div className="grid gap-1">
                       <Label htmlFor="subscription_plan">
                         Subscription Plan
                       </Label>
@@ -468,10 +468,10 @@ export default function ShopsPage() {
                 </div>
 
                 {/* Admin Information */}
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <h3 className="text-lg font-medium">Admin Information</h3>
 
-                  <div className="grid gap-2">
+                  <div className="grid gap-1">
                     <Label htmlFor="admin_name">Admin Name</Label>
                     <Input
                       id="admin_name"
@@ -490,7 +490,7 @@ export default function ShopsPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="grid gap-2">
+                    <div className="grid gap-1">
                       <Label htmlFor="admin_email">Admin Email</Label>
                       <Input
                         id="admin_email"
@@ -509,7 +509,7 @@ export default function ShopsPage() {
                         )}
                     </div>
 
-                    <div className="grid gap-2">
+                    <div className="grid gap-1">
                       <Label htmlFor="admin_password">Admin Password</Label>
                       <Input
                         id="admin_password"
@@ -531,11 +531,11 @@ export default function ShopsPage() {
                 </div>
 
                 {/* Settings */}
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <h3 className="text-lg font-medium">Shop Settings</h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="grid gap-2">
+                    <div className="grid gap-1">
                       <Label htmlFor="display_name">Display Name</Label>
                       <Input
                         id="display_name"
@@ -553,7 +553,7 @@ export default function ShopsPage() {
                         )}
                     </div>
 
-                    <div className="grid gap-2">
+                    <div className="grid gap-1">
                       <Label htmlFor="email">Contact Email</Label>
                       <Input
                         id="email"
@@ -584,7 +584,7 @@ export default function ShopsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
+      <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
         <div className="relative w-full md:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -603,7 +603,7 @@ export default function ShopsPage() {
               setTypeFilter(value === "all" ? null : value)
             }
           >
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="sm:w-[180px]">
               <SelectValue placeholder="All types" />
             </SelectTrigger>
             <SelectContent>
@@ -620,7 +620,7 @@ export default function ShopsPage() {
               setSubscriptionFilter(value === "all" ? null : value)
             }
           >
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="sm:w-[180px]">
               <SelectValue placeholder="All plans" />
             </SelectTrigger>
             <SelectContent>
@@ -647,7 +647,7 @@ export default function ShopsPage() {
               }
             }}
           >
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="sm:w-[180px]">
               <SelectValue placeholder="All status" />
             </SelectTrigger>
             <SelectContent>
@@ -660,7 +660,7 @@ export default function ShopsPage() {
       </div>
 
       {/* Table for large screens, Cards for small screens */}
-      <div className="hidden md:block border rounded-md">
+      <div className="hidden md:block border rounded-md bg-white">
         <Table>
           <TableHeader>
             <TableRow>
@@ -687,7 +687,6 @@ export default function ShopsPage() {
                 <TableRow key={shop.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Store className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <div className="font-medium">{shop.name}</div>
                         {shop.branch_name && (
@@ -758,8 +757,8 @@ export default function ShopsPage() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
+            <div className="grid gap-2 py-4">
+              <div className="grid gap-1">
                 <Label htmlFor="subscription_plan">Subscription Plan</Label>
                 <Select
                   name="subscription_plan"

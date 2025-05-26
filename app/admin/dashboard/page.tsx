@@ -89,9 +89,9 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">
+    <div className="p-3 sm:p-4 md:p-6 space-y-2 md:space-y-6">
       {/* Header */}
-      <div className="flex flex-col space-y-2 sm:space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col space-y-1 sm:space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
             Dashboard
@@ -203,7 +203,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts Section */}
-      <Tabs defaultValue="sales" className="space-y-4">
+      <Tabs defaultValue="sales" className="space-y-2">
         <TabsList className="grid w-full grid-cols-2 h-auto">
           <TabsTrigger
             value="sales"
@@ -219,7 +219,7 @@ export default function DashboardPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="sales" className="space-y-4">
+        <TabsContent value="sales" className="space-y-2">
           <Card className="overflow-hidden">
             <CardHeader className="p-4 sm:p-6">
               <CardTitle className="text-lg sm:text-xl">Weekly Sales</CardTitle>
@@ -265,7 +265,7 @@ export default function DashboardPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="categories" className="space-y-4">
+        <TabsContent value="categories" className="space-y-2">
           <Card className="overflow-hidden">
             <CardHeader className="p-4 sm:p-6">
               <CardTitle className="text-lg sm:text-xl">

@@ -295,11 +295,11 @@ export default function OrdersPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
+      <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
         <h1 className="text-2xl font-bold">Orders</h1>
       </div>
 
-      <div className="flex flex-col space-y-4 lg:space-y-0 lg:flex-row lg:items-center lg:justify-between mb-6">
+      <div className="flex flex-col space-y-2 lg:space-y-0 lg:flex-row lg:items-center lg:justify-between mb-6">
         <div className="relative w-full lg:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -426,7 +426,7 @@ export default function OrdersPage() {
       </div>
 
       {/* Mobile Card View */}
-      <div className="lg:hidden space-y-4">
+      <div className="lg:hidden space-y-2">
         {filteredOrders.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             No orders found
@@ -451,7 +451,7 @@ export default function OrdersPage() {
           </DialogHeader>
 
           {selectedOrder && (
-            <div className="space-y-4">
+            <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="text-muted-foreground">Date:</div>
                 <div>{new Date(selectedOrder.created_at).toLocaleString()}</div>
@@ -468,7 +468,7 @@ export default function OrdersPage() {
 
               <div className="border-t pt-4">
                 <h3 className="font-medium mb-2">Order Items</h3>
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {getOrderItems(selectedOrder.id).map((item) => (
                     <div key={item.id} className="flex justify-between text-sm">
                       <span>

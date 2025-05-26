@@ -20,7 +20,7 @@ import { ImageUpload } from "@/components/shared/image-upload";
 
 // Validation schema
 const settingsSchema = Yup.object({
-  restaurant_name: Yup.string().required("Restaurant name is required"),
+  business_name: Yup.string().required("Business name is required"),
   address: Yup.string().required("Address is required"),
   phone_number: Yup.string().required("Phone number is required"),
   email: Yup.string()
@@ -34,18 +34,29 @@ const settingsSchema = Yup.object({
 
 // Dummy data
 const dummySettings = {
-  restaurant_name: "Delicious Restaurant",
+  business_name: "Demo Business",
   address: "123 Main Street, City, State, 12345",
   phone_number: "(123) 456-7890",
-  email: "info@deliciousrestaurant.com",
+  email: "info@demobusiness.com",
   logo_url: null,
-  receipt_header_text: "Thank you for dining with us!",
-  receipt_footer_text: "Please come again soon!",
+  receipt_header_text: "Thank you for your business!",
+  receipt_footer_text: "Please visit us again!",
   show_logo_on_receipt: true,
 };
 
+type Settings = {
+  business_name: string;
+  address: string;
+  phone_number: string;
+  email: string;
+  logo_url: string | null;
+  receipt_header_text: string;
+  receipt_footer_text: string;
+  show_logo_on_receipt: boolean;
+};
+
 export default function SettingsPage() {
-  const [settings, setSettings] = useState(dummySettings);
+  const [settings, setSettings] = useState<Settings>(dummySettings);
 
   const formik = useFormik({
     initialValues: settings,
@@ -65,11 +76,11 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
+      <div className="flex flex-col space-y-1 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Restaurant Settings</h1>
+          <h1 className="text-2xl font-bold">Business Settings</h1>
           <p className="text-muted-foreground">
-            Manage your restaurant information and receipt settings
+            Manage your business information and receipt settings
           </p>
         </div>
       </div>
@@ -77,36 +88,36 @@ export default function SettingsPage() {
       <Card>
         <form onSubmit={formik.handleSubmit}>
           <CardHeader>
-            <CardTitle>Restaurant Information</CardTitle>
+            <CardTitle>Business Information</CardTitle>
             <CardDescription>
-              Update your restaurant details and receipt configuration.
+              Update your business details and receipt configuration.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Restaurant Basic Information */}
-            <div className="space-y-4">
+            <div className="space-y-1">
               <h3 className="text-lg font-medium">Basic Information</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant_name">Restaurant Name</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="business_name">Business Name</Label>
                   <Input
-                    id="restaurant_name"
-                    name="restaurant_name"
-                    placeholder="Enter restaurant name"
-                    value={formik.values.restaurant_name}
+                    id="business_name"
+                    name="business_name"
+                    placeholder="Enter business name"
+                    value={formik.values.business_name}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                   />
-                  {formik.touched.restaurant_name &&
-                    formik.errors.restaurant_name && (
+                  {formik.touched.business_name &&
+                    formik.errors.business_name && (
                       <p className="text-sm text-red-500">
-                        {formik.errors.restaurant_name}
+                        {formik.errors.business_name}
                       </p>
                     )}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <Label htmlFor="email">Email Address</Label>
                   <Input
                     id="email"
@@ -125,7 +136,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label htmlFor="address">Address</Label>
                 <Textarea
                   id="address"
@@ -143,7 +154,7 @@ export default function SettingsPage() {
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label htmlFor="phone_number">Phone Number</Label>
                 <Input
                   id="phone_number"
@@ -162,22 +173,24 @@ export default function SettingsPage() {
             </div>
 
             {/* Logo Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Restaurant Logo</h3>
+            <div className="space-y-1">
+              <h3 className="text-lg font-medium">Business Logo</h3>
               <ImageUpload
                 value={formik.values.logo_url}
-                onChange={(value) => formik.setFieldValue("logo_url", value)}
+                onChange={(value: string | null) =>
+                  formik.setFieldValue("logo_url", value)
+                }
                 onRemove={() => formik.setFieldValue("logo_url", "")}
-                label="Restaurant Logo"
-                placeholder="Upload your restaurant logo"
+                label="Business Logo"
+                placeholder="Upload your business logo"
               />
             </div>
 
             {/* Receipt Settings */}
-            <div className="space-y-4">
+            <div className="space-y-1">
               <h3 className="text-lg font-medium">Receipt Settings</h3>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label htmlFor="receipt_header_text">Receipt Header Text</Label>
                 <Textarea
                   id="receipt_header_text"
@@ -196,7 +209,7 @@ export default function SettingsPage() {
                   )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label htmlFor="receipt_footer_text">Receipt Footer Text</Label>
                 <Textarea
                   id="receipt_footer_text"
@@ -221,7 +234,7 @@ export default function SettingsPage() {
                     Show Logo on Receipt
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Display your restaurant logo on printed receipts
+                    Display your business logo on printed receipts
                   </p>
                 </div>
                 <Switch

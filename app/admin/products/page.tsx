@@ -358,12 +358,12 @@ export default function ProductsPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
+      <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
         <h1 className="text-2xl font-bold">Products</h1>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="h-4 w-4" />
               Add Product
             </Button>
           </DialogTrigger>
@@ -376,8 +376,8 @@ export default function ProductsPage() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
+              <div className="grid gap-2 py-4">
+                <div className="grid gap-1">
                   <Label htmlFor="name">Name</Label>
                   <Input
                     id="name"
@@ -394,7 +394,7 @@ export default function ProductsPage() {
                   )}
                 </div>
 
-                <div className="grid gap-2">
+                <div className="grid gap-1">
                   <Label htmlFor="price">Price</Label>
                   <Input
                     id="price"
@@ -413,7 +413,7 @@ export default function ProductsPage() {
                   )}
                 </div>
 
-                <div className="grid gap-2">
+                <div className="grid gap-1">
                   <Label htmlFor="category_id">Category</Label>
                   <Select
                     name="category_id"
@@ -470,7 +470,7 @@ export default function ProductsPage() {
         </Dialog>
       </div>
 
-      <div className="flex flex-col space-y-4 lg:space-y-0 lg:flex-row lg:items-center lg:justify-between mb-6">
+      <div className="flex flex-col space-y-2 lg:space-y-0 lg:flex-row lg:items-center lg:justify-between mb-6">
         <div className="relative w-full lg:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -609,7 +609,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Mobile Card View */}
-      <div className="lg:hidden space-y-4">
+      <div className="lg:hidden space-y-2">
         {filteredProducts.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             No products found
@@ -633,8 +633,8 @@ export default function ProductsPage() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
+            <div className="grid gap-2 py-4">
+              <div className="grid gap-1">
                 <Label htmlFor="name">Name</Label>
                 <Input
                   id="name"
@@ -651,7 +651,7 @@ export default function ProductsPage() {
                 )}
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-1">
                 <Label htmlFor="price">Price</Label>
                 <Input
                   id="price"
@@ -670,7 +670,7 @@ export default function ProductsPage() {
                 )}
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-1">
                 <Label htmlFor="category_id">Category</Label>
                 <Select
                   name="category_id"
