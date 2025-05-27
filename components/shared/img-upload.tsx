@@ -2,15 +2,14 @@
 "use client";
 
 import { AlertCircleIcon, ImageIcon, UploadIcon, XIcon } from "lucide-react";
-import { useEffect } from "react";
 
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 interface ImgUploadProps {
-  value?: string | null;
-  onChange: (value: string) => void;
+  value?: File | null;
+  onChange: (value: File | null) => void;
   onRemove: () => void;
   label?: string;
   placeholder?: string;
@@ -42,16 +41,14 @@ export default function ImgUpload({
   ] = useFileUpload({
     accept: "image/svg+xml,image/png,image/jpeg,image/jpg,image/gif",
     maxSize,
+    onFilesAdded: (addedFiles) => {
+      if (addedFiles[0]?.file) {
+        onChange(addedFiles[0].file as File);
+      }
+    },
   });
 
   const previewUrl = files[0]?.preview || value || null;
-
-  // Handle file changes
-  useEffect(() => {
-    if (files[0]?.preview && files[0].preview !== value) {
-      onChange(files[0].preview);
-    }
-  }, [files, onChange, value]);
 
   const handleRemove = () => {
     if (files[0]) {
@@ -82,7 +79,7 @@ export default function ImgUpload({
           {previewUrl ? (
             <div className="absolute inset-0 flex items-center justify-center p-4">
               <img
-                src={previewUrl}
+                src={previewUrl as string}
                 alt={files[0]?.file?.name || "Uploaded image"}
                 className="mx-auto max-h-full rounded object-contain"
               />

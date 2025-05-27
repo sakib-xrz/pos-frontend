@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,91 +32,105 @@ import {
 import { Label } from "@/components/ui/label";
 import { useFormik } from "formik";
 import { categorySchema } from "@/lib/validation-schemas";
-import { Plus, MoreHorizontal, Search, Edit, Trash } from "lucide-react";
+import { Plus, MoreHorizontal, Search, Trash, Loader2 } from "lucide-react";
 import Image from "next/image";
 import ImgUpload from "@/components/shared/img-upload";
 import Placeholder from "@/public/placeholder.jpg";
+import {
+  useGetCategoriesQuery,
+  useCreateCategoryMutation,
+  useDeleteCategoryMutation,
+} from "@/redux/features/category/categoryApi";
+import { sanitizeParams } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
+import CustomPagination from "@/components/shared/custom-pagination";
+import { toast } from "sonner";
 
-// Updated dummy data with images
-const dummyCategories: Category[] = [
-  {
-    id: "1",
-    name: "Burgers",
-    image: null,
-    created_at: "2023-01-15T10:30:00Z",
-    updated_at: "2023-01-15T10:30:00Z",
-  },
-  {
-    id: "2",
-    name: "Pizza",
-    image: null,
-    created_at: "2023-01-15T10:35:00Z",
-    updated_at: "2023-01-15T10:35:00Z",
-  },
-  {
-    id: "3",
-    name: "Drinks",
-    image: null,
-    created_at: "2023-01-15T10:40:00Z",
-    updated_at: "2023-01-15T10:40:00Z",
-  },
-  {
-    id: "4",
-    name: "Sides",
-    image: null,
-    created_at: "2023-01-15T10:45:00Z",
-    updated_at: "2023-01-15T10:45:00Z",
-  },
-  {
-    id: "5",
-    name: "Desserts",
-    image: null,
-    created_at: "2023-01-15T10:50:00Z",
-    updated_at: "2023-01-15T10:50:00Z",
-  },
-];
-
-interface Category {
+type Category = {
   id: string;
   name: string;
   image: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState(dummyCategories);
+  // Search and pagination states
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(12);
+
+  // Debounced search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
+  // Build params for API call
+  const params = {
+    page: currentPage,
+    limit: pageSize,
+    search: debouncedSearchQuery,
+  };
+
+  const {
+    data: categoryData,
+    isLoading,
+    error,
+  } = useGetCategoriesQuery(sanitizeParams(params));
+
+  const [createCategory, { isLoading: isCreating }] =
+    useCreateCategoryMutation();
+  const [deleteCategory, { isLoading: isDeleting }] =
+    useDeleteCategoryMutation();
+
+  const categories = categoryData?.data || [];
+  const totalPages = categoryData?.meta?.totalPages || 1;
+  const totalItems = categoryData?.meta?.total || 0;
+
+  // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
     null
   );
 
-  const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery]);
 
-  const handleEdit = (category: Category) => {
-    setSelectedCategory(category);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    setCategoryToDelete(id);
+  const handleDeleteClick = (category: Category) => {
+    setCategoryToDelete(category);
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (categoryToDelete) {
-      setCategories(
-        categories.filter((category) => category.id !== categoryToDelete)
-      );
+  const handleDeleteConfirm = async () => {
+    if (!categoryToDelete?.id) {
+      toast.error("Invalid category selected for deletion");
+      return;
+    }
+
+    try {
+      await deleteCategory(categoryToDelete.id).unwrap();
       setIsDeleteDialogOpen(false);
       setCategoryToDelete(null);
+      toast.success("Category deleted successfully");
+    } catch (error: any) {
+      if (error?.data?.message) {
+        toast.error(error.data.message);
+      } else if (error?.message) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to delete category. Please try again.");
+      }
+      console.error("Delete category error:", error);
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
 
   const addFormik = useFormik({
@@ -125,50 +139,86 @@ export default function CategoriesPage() {
       image: "",
     },
     validationSchema: categorySchema,
-    onSubmit: (values) => {
-      const newCategory = {
-        id: Math.random().toString(36).substring(2, 9),
-        name: values.name,
-        image: values.image || "/placeholder.svg?height=100&width=100",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+    onSubmit: async (values) => {
+      console.log(values);
+      try {
+        const formData = new FormData();
+        formData.append("name", values.name);
 
-      setCategories([...categories, newCategory as Category]);
-      setIsAddDialogOpen(false);
-      addFormik.resetForm();
+        if (values.image) {
+          formData.append("image", values.image);
+        }
+
+        await createCategory(formData).unwrap();
+        setIsAddDialogOpen(false);
+        addFormik.resetForm();
+        toast.success("Category created successfully");
+      } catch (error: any) {
+        if (error?.data?.message) {
+          toast.error(error.data.message);
+        } else if (error?.message) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to create category. Please try again.");
+        }
+        console.error("Create category error:", error);
+      }
     },
   });
 
-  const editFormik = useFormik({
-    initialValues: {
-      name: selectedCategory?.name || "",
-      image: selectedCategory?.image || "",
-    },
-    validationSchema: categorySchema,
-    enableReinitialize: true,
-    onSubmit: (values) => {
-      setCategories(
-        categories.map((category) =>
-          category.id === selectedCategory?.id
-            ? {
-                ...category,
-                name: values.name,
-                image: values.image,
-                updated_at: new Date().toISOString(),
-              }
-            : category
-        )
-      );
+  // Loading component
+  const LoadingState = () => (
+    <div className="flex items-center justify-center py-8">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <span className="ml-2 text-muted-foreground">Loading categories...</span>
+    </div>
+  );
 
-      setIsEditDialogOpen(false);
-    },
-  });
+  // Error component
+  const ErrorState = () => (
+    <div className="text-center py-8">
+      <p className="text-red-500 mb-2">Failed to load categories</p>
+      <Button variant="outline" onClick={() => window.location.reload()}>
+        Try Again
+      </Button>
+    </div>
+  );
+
+  // Empty state component
+  const EmptyState = () => (
+    <div className="text-center py-8 text-muted-foreground">
+      {debouncedSearchQuery ? (
+        <div>
+          <p className="mb-2">No categories found matching your search</p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSearchQuery("");
+            }}
+          >
+            Clear Search
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <p className="mb-2">No categories found</p>
+          <p className="text-sm">Create your first category to get started</p>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="p-6">
       <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
-        <h1 className="text-2xl font-bold">Categories</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Categories</h1>
+          {!isLoading && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {totalItems} categor{totalItems !== 1 ? "ies" : "y"} found
+            </p>
+          )}
+        </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -207,7 +257,11 @@ export default function CategoriesPage() {
                 </div>
 
                 <ImgUpload
-                  value={addFormik.values.image}
+                  value={
+                    addFormik.values.image
+                      ? new File([addFormik.values.image], "category-image")
+                      : null
+                  }
                   onChange={(value) => addFormik.setFieldValue("image", value)}
                   onRemove={() => addFormik.setFieldValue("image", "")}
                   label="Category Image"
@@ -216,13 +270,16 @@ export default function CategoriesPage() {
               </div>
 
               <DialogFooter>
-                <Button type="submit">Add Category</Button>
+                <Button type="submit" disabled={isCreating}>
+                  {isCreating ? "Creating..." : "Add Category"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* Search */}
       <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
         <div className="relative w-full md:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -231,122 +288,82 @@ export default function CategoriesPage() {
             placeholder="Search categories..."
             className="pl-8"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
           />
         </div>
       </div>
 
-      {/* Responsive Card Grid */}
-      {filteredCategories.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="bg-muted/50 rounded-lg p-8">
-            <p className="text-muted-foreground">No categories found</p>
-          </div>
-        </div>
+      {/* Content */}
+      {error ? (
+        <ErrorState />
+      ) : isLoading ? (
+        <LoadingState />
+      ) : categories.length === 0 ? (
+        <EmptyState />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {filteredCategories.map((category) => (
-            <Card
-              key={category.id}
-              className="group hover:shadow-md transition-shadow"
-            >
-              <CardHeader className="p-0">
-                <div className="relative w-full h-48 rounded-t-lg overflow-hidden">
-                  <Image
-                    src={category.image || Placeholder}
-                    alt={category.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-200"
-                  />
-                  <div className="absolute top-2 right-2">
-                    <DropdownMenu modal={false}>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="secondary"
-                          size="icon"
-                          className="h-8 w-8 bg-white/90 hover:bg-white shadow-sm"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(category)}>
-                          <Edit className="h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => handleDelete(category.id)}
-                        >
-                          <Trash className="h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+        <>
+          {/* Responsive Card Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {categories.map((category: Category) => (
+              <Card
+                key={category.id}
+                className="group hover:shadow-md transition-shadow"
+              >
+                <CardHeader className="p-0">
+                  <div className="relative w-full h-48 rounded-t-lg overflow-hidden">
+                    <Image
+                      src={category.image || Placeholder}
+                      alt={category.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-200"
+                    />
+                    <div className="absolute top-2 right-2">
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 w-8 bg-white/90 hover:bg-white shadow-sm"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => handleDeleteClick(category)}
+                          >
+                            <Trash className="h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4">
-                <CardTitle className="text-lg font-semibold truncate">
-                  {category.name}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Created {new Date(category.created_at).toLocaleDateString()}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent
-          className="max-w-md"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <form onSubmit={editFormik.handleSubmit}>
-            <DialogHeader>
-              <DialogTitle>Edit Category</DialogTitle>
-              <DialogDescription>
-                Make changes to the category.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="grid gap-2 py-4">
-              <div className="grid gap-1">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  placeholder="Category name"
-                  onChange={editFormik.handleChange}
-                  onBlur={editFormik.handleBlur}
-                  value={editFormik.values.name}
-                />
-                {editFormik.touched.name && editFormik.errors.name && (
-                  <p className="text-sm text-red-500">
-                    {editFormik.errors.name}
+                </CardHeader>
+                <CardContent className="p-4">
+                  <CardTitle className="text-lg font-semibold truncate">
+                    {category.name}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Created {new Date(category.created_at).toLocaleDateString()}
                   </p>
-                )}
-              </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-              <ImgUpload
-                value={editFormik.values.image}
-                onChange={(value) => editFormik.setFieldValue("image", value)}
-                onRemove={() => editFormik.setFieldValue("image", "")}
-                label="Category Image"
-                placeholder="Upload category image"
-              />
-            </div>
-
-            <DialogFooter>
-              <Button type="submit">Save Changes</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <CustomPagination
+              params={{ page: currentPage }}
+              totalPages={totalPages}
+              handlePageChange={handlePageChange}
+            />
+          )}
+        </>
+      )}
 
       {/* Delete Confirmation AlertDialog */}
       <AlertDialog
@@ -358,16 +375,18 @@ export default function CategoriesPage() {
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the
-              category and may affect all associated products.
+              category &quot;{categoryToDelete?.name}&quot; and may affect all
+              associated products.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={isDeleting}
             >
-              Delete
+              {isDeleting ? "Deleting..." : "Delete Category"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
