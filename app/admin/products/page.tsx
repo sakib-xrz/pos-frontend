@@ -50,9 +50,9 @@ import { productSchema } from "@/lib/validation-schemas";
 import { formatCurrency } from "@/lib/utils";
 import { Plus, MoreHorizontal, Search, Edit, Trash } from "lucide-react";
 import Image from "next/image";
-import { ImageUpload } from "@/components/shared/image-upload";
 import Placeholder from "@/public/placeholder.jpg";
 import { Card, CardContent } from "@/components/ui/card";
+import ImgUpload from "@/components/shared/img-upload";
 
 // Dummy data
 const dummyProducts = [
@@ -441,7 +441,7 @@ export default function ProductsPage() {
                     )}
                 </div>
 
-                <ImageUpload
+                <ImgUpload
                   value={addFormik.values.image}
                   onChange={(value) => addFormik.setFieldValue("image", value)}
                   onRemove={() => addFormik.setFieldValue("image", "")}
@@ -698,7 +698,7 @@ export default function ProductsPage() {
                   )}
               </div>
 
-              <ImageUpload
+              <ImgUpload
                 value={editFormik.values.image}
                 onChange={(value) => editFormik.setFieldValue("image", value)}
                 onRemove={() => editFormik.setFieldValue("image", "")}

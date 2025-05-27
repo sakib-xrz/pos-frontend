@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { ImageUpload } from "@/components/shared/image-upload";
+import ImgUpload from "@/components/shared/img-upload";
 
 // Validation schema
 const settingsSchema = Yup.object({
@@ -175,9 +175,9 @@ export default function SettingsPage() {
             {/* Logo Section */}
             <div className="space-y-1">
               <h3 className="text-lg font-medium">Business Logo</h3>
-              <ImageUpload
+              <ImgUpload
                 value={formik.values.logo_url}
-                onChange={(value: string | null) =>
+                onChange={(value: string) =>
                   formik.setFieldValue("logo_url", value)
                 }
                 onRemove={() => formik.setFieldValue("logo_url", "")}

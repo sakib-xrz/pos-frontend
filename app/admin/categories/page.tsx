@@ -34,7 +34,7 @@ import { useFormik } from "formik";
 import { categorySchema } from "@/lib/validation-schemas";
 import { Plus, MoreHorizontal, Search, Edit, Trash } from "lucide-react";
 import Image from "next/image";
-import { ImageUpload } from "@/components/shared/image-upload";
+import ImgUpload from "@/components/shared/img-upload";
 import Placeholder from "@/public/placeholder.jpg";
 
 // Updated dummy data with images
@@ -206,7 +206,7 @@ export default function CategoriesPage() {
                   )}
                 </div>
 
-                <ImageUpload
+                <ImgUpload
                   value={addFormik.values.image}
                   onChange={(value) => addFormik.setFieldValue("image", value)}
                   onRemove={() => addFormik.setFieldValue("image", "")}
@@ -332,7 +332,7 @@ export default function CategoriesPage() {
                 )}
               </div>
 
-              <ImageUpload
+              <ImgUpload
                 value={editFormik.values.image}
                 onChange={(value) => editFormik.setFieldValue("image", value)}
                 onRemove={() => editFormik.setFieldValue("image", "")}
