@@ -82,7 +82,7 @@ export default function CategoriesPage() {
     useDeleteCategoryMutation();
 
   const categories = categoryData?.data || [];
-  const totalPages = categoryData?.meta?.totalPages || 1;
+  const totalPages = categoryData?.meta?.total_pages || 1;
   const totalItems = categoryData?.meta?.total || 0;
 
   // Dialog states

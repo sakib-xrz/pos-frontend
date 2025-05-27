@@ -148,7 +148,7 @@ export default function ShopsPage() {
     useUpdateSubscriptionMutation();
 
   const shops = shopData?.data || [];
-  const totalPages = shopData?.meta?.totalPages || 1;
+  const totalPages = shopData?.meta?.total_pages || 1;
   const totalItems = shopData?.meta?.total || 0;
 
   // Dialog states
