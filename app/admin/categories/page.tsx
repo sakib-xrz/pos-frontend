@@ -32,13 +32,21 @@ import {
 import { Label } from "@/components/ui/label";
 import { useFormik } from "formik";
 import { categorySchema } from "@/lib/validation-schemas";
-import { Plus, MoreHorizontal, Search, Trash, Loader2 } from "lucide-react";
+import {
+  Plus,
+  MoreHorizontal,
+  Search,
+  Trash,
+  Loader2,
+  Edit,
+} from "lucide-react";
 import Image from "next/image";
 import ImgUpload from "@/components/shared/img-upload";
 import Placeholder from "@/public/placeholder.jpg";
 import {
   useGetCategoriesQuery,
   useCreateCategoryMutation,
+  useUpdateCategoryMutation,
   useDeleteCategoryMutation,
 } from "@/redux/features/category/categoryApi";
 import { sanitizeParams } from "@/lib/utils";
@@ -78,6 +86,8 @@ export default function CategoriesPage() {
 
   const [createCategory, { isLoading: isCreating }] =
     useCreateCategoryMutation();
+  const [updateCategory, { isLoading: isUpdating }] =
+    useUpdateCategoryMutation();
   const [deleteCategory, { isLoading: isDeleting }] =
     useDeleteCategoryMutation();
 
@@ -87,15 +97,22 @@ export default function CategoriesPage() {
 
   // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
     null
   );
+  const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
 
   // Reset to first page when search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearchQuery]);
+
+  const handleEditClick = (category: Category) => {
+    setCategoryToEdit(category);
+    setIsEditDialogOpen(true);
+  };
 
   const handleDeleteClick = (category: Category) => {
     setCategoryToDelete(category);
@@ -162,6 +179,49 @@ export default function CategoriesPage() {
           toast.error("Failed to create category. Please try again.");
         }
         console.error("Create category error:", error);
+      }
+    },
+  });
+
+  const editFormik = useFormik({
+    initialValues: {
+      name: categoryToEdit?.name || "",
+      image: "",
+    },
+    validationSchema: categorySchema,
+    enableReinitialize: true,
+    onSubmit: async (values) => {
+      if (!categoryToEdit?.id) {
+        toast.error("Invalid category selected for update");
+        return;
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append("name", values.name);
+
+        // Only append image if a new image is selected
+        if (values.image) {
+          formData.append("image", values.image);
+        }
+
+        await updateCategory({
+          id: categoryToEdit.id,
+          data: formData,
+        }).unwrap();
+        setIsEditDialogOpen(false);
+        setCategoryToEdit(null);
+        editFormik.resetForm();
+        toast.success("Category updated successfully");
+      } catch (error: any) {
+        if (error?.data?.message) {
+          toast.error(error.data.message);
+        } else if (error?.message) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to update category. Please try again.");
+        }
+        console.error("Update category error:", error);
       }
     },
   });
@@ -331,11 +391,17 @@ export default function CategoriesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
+                            onClick={() => handleEditClick(category)}
+                          >
+                            <Edit className="h-4 w-4" />
+                            Edit Category
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             className="text-red-600"
                             onClick={() => handleDeleteClick(category)}
                           >
                             <Trash className="h-4 w-4" />
-                            Delete
+                            Delete Category
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -365,7 +431,82 @@ export default function CategoriesPage() {
         </>
       )}
 
-      {/* Delete Confirmation AlertDialog */}
+      {/* Edit Category Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="max-w-md"
+        >
+          <form onSubmit={editFormik.handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>Edit Category</DialogTitle>
+              <DialogDescription>
+                Update the category details.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-2 py-4">
+              <div className="grid gap-1">
+                <Label htmlFor="edit-name">Name</Label>
+                <Input
+                  id="edit-name"
+                  name="name"
+                  placeholder="Category name"
+                  onChange={editFormik.handleChange}
+                  onBlur={editFormik.handleBlur}
+                  value={editFormik.values.name}
+                />
+                {editFormik.touched.name && editFormik.errors.name && (
+                  <p className="text-sm text-red-500">
+                    {editFormik.errors.name}
+                  </p>
+                )}
+              </div>
+
+              {categoryToEdit?.image && (
+                <div>
+                  <Label>Current Image</Label>
+                  <div className="relative w-full h-32 rounded-lg overflow-hidden border mb-2">
+                    <Image
+                      src={categoryToEdit.image}
+                      alt={categoryToEdit.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+              )}
+              <ImgUpload
+                value={
+                  editFormik.values.image
+                    ? new File([editFormik.values.image], "category-image")
+                    : null
+                }
+                onChange={(value) => editFormik.setFieldValue("image", value)}
+                onRemove={() => editFormik.setFieldValue("image", "")}
+                label={
+                  categoryToEdit?.image
+                    ? "New Category Image"
+                    : "Upload Category Image"
+                }
+                placeholder={
+                  categoryToEdit?.image
+                    ? "Upload new category image (optional)"
+                    : "Upload category image"
+                }
+              />
+            </div>
+
+            <DialogFooter>
+              <Button type="submit" disabled={isUpdating}>
+                {isUpdating ? "Updating..." : "Update Category"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Category Confirmation AlertDialog */}
       <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
