@@ -13,7 +13,7 @@ interface StaffLayoutProps {
   children: React.ReactNode;
 }
 
-export function StaffLayout({ children }: StaffLayoutProps) {
+export default function StaffLayout({ children }: StaffLayoutProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 

@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useCurrentUser } from "@/redux/features/auth/authSlice";
 
 const navItems = [
   {
@@ -65,6 +67,8 @@ export default function AdminLayout({
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
+  const user = useCurrentUser();
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Mobile Navigation */}
@@ -100,14 +104,29 @@ export default function AdminLayout({
               </ul>
             </nav>
             <div className="p-4 border-t">
-              <Button
-                variant="destructive"
-                className="w-full justify-start px-2"
-                onClick={() => router.push("/logout")}
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </Button>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-gray-300 text-gray-700 uppercase">
+                      {user?.email?.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="text-sm text-gray-700 font-medium truncate max-w-[150px]">
+                      {user?.email}
+                    </span>
+                    <span className="text-xs text-gray-500">Admin</span>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => router.push("/logout")}
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </SheetContent>
@@ -132,14 +151,29 @@ export default function AdminLayout({
             ))}
           </nav>
           <div className="flex-shrink-0 flex border-t p-4">
-            <Button
-              variant="destructive"
-              className="w-full justify-start"
-              onClick={() => router.push("/logout")}
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-gray-300 text-gray-700 uppercase">
+                    {user?.email?.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                  <span className="text-sm text-gray-700 font-medium truncate max-w-[150px]">
+                    {user?.email}
+                  </span>
+                  <span className="text-xs text-gray-500">Admin</span>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push("/logout")}
+                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
