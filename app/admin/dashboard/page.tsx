@@ -40,6 +40,7 @@ import {
   useGetCategorySalesQuery,
 } from "@/redux/features/stats/statsApi";
 import { useMemo } from "react";
+import useDesktop from "@/hooks/use-desktop";
 
 // Generate colors dynamically
 const generateColors = (count: number) => {
@@ -63,6 +64,9 @@ const generateColors = (count: number) => {
 };
 
 export default function DashboardPage() {
+  // Add the useDesktop hook to detect screen size
+  const isDesktop = useDesktop(640); // Using 640px as the breakpoint (sm breakpoint)
+
   // API calls
   const {
     data: summaryData,
@@ -431,11 +435,7 @@ export default function DashboardPage() {
                           cy="50%"
                           labelLine={false}
                           label={({ category, percent }) => {
-                            // Hide labels on very small screens
-                            if (
-                              typeof window !== "undefined" &&
-                              window.innerWidth < 640
-                            ) {
+                            if (!isDesktop) {
                               return "";
                             }
                             return `${category}: ${(percent * 100).toFixed(0)}%`;
@@ -445,7 +445,7 @@ export default function DashboardPage() {
                           dataKey="percentage"
                         >
                           {(categorySalesData?.data || []).map(
-                            (entry: any, index: number) => (
+                            (_entry: any, index: number) => (
                               <Cell
                                 key={`cell-${index}`}
                                 fill={dynamicColors[index] || "#8884d8"}
@@ -453,16 +453,6 @@ export default function DashboardPage() {
                             )
                           )}
                         </Pie>
-                        <ChartTooltip
-                          content={
-                            <ChartTooltipContent
-                              formatter={(value) => [
-                                `${value}%`,
-                                " Percentage",
-                              ]}
-                            />
-                          }
-                        />
                       </PieChart>
                     </ResponsiveContainer>
                   </ChartContainer>
