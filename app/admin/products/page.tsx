@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,106 +45,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { useFormik } from "formik";
 import { productSchema } from "@/lib/validation-schemas";
-import { formatCurrency } from "@/lib/utils";
-import { Plus, MoreHorizontal, Search, Edit, Trash } from "lucide-react";
+import { formatCurrency, sanitizeParams } from "@/lib/utils";
+import {
+  Plus,
+  MoreHorizontal,
+  Search,
+  Edit,
+  Trash,
+  Loader2,
+} from "lucide-react";
 import Image from "next/image";
-import Placeholder from "@/public/placeholder.jpg";
-import { Card, CardContent } from "@/components/ui/card";
 import ImgUpload from "@/components/shared/img-upload";
-
-// Dummy data
-const dummyProducts = [
-  {
-    id: "1",
-    name: "Cheeseburger",
-    price: 8.99,
-    image: null,
-    category_id: "1",
-    is_available: true,
-  },
-  {
-    id: "2",
-    name: "Double Cheeseburger",
-    price: 10.99,
-    image: null,
-    category_id: "1",
-    is_available: true,
-  },
-  {
-    id: "3",
-    name: "Veggie Burger",
-    price: 9.99,
-    image: null,
-    category_id: "1",
-    is_available: true,
-  },
-  {
-    id: "4",
-    name: "Margherita Pizza",
-    price: 12.99,
-    image: null,
-    category_id: "2",
-    is_available: true,
-  },
-  {
-    id: "5",
-    name: "Pepperoni Pizza",
-    price: 14.99,
-    image: null,
-    category_id: "2",
-    is_available: true,
-  },
-  {
-    id: "6",
-    name: "Soda",
-    price: 2.99,
-    image: null,
-    category_id: "3",
-    is_available: true,
-  },
-  {
-    id: "7",
-    name: "Water",
-    price: 1.99,
-    image: null,
-    category_id: "3",
-    is_available: true,
-  },
-  {
-    id: "8",
-    name: "French Fries",
-    price: 3.99,
-    image: null,
-    category_id: "4",
-    is_available: true,
-  },
-  {
-    id: "9",
-    name: "Onion Rings",
-    price: 4.99,
-    image: null,
-    category_id: "4",
-    is_available: true,
-  },
-  {
-    id: "10",
-    name: "Ice Cream",
-    price: 5.99,
-    image: null,
-    category_id: "5",
-    is_available: true,
-  },
-];
-
-const dummyCategories = [
-  { id: "1", name: "Burgers" },
-  { id: "2", name: "Pizza" },
-  { id: "3", name: "Drinks" },
-  { id: "4", name: "Sides" },
-  { id: "5", name: "Desserts" },
-];
+import Placeholder from "@/public/placeholder.jpg";
+import {
+  useGetProductsQuery,
+  useCreateProductMutation,
+  useUpdateProductMutation,
+  useDeleteProductMutation,
+  useUpdateProductAvailabilityMutation,
+} from "@/redux/features/product/productApi";
+import { useGetCategoriesQuery } from "@/redux/features/category/categoryApi";
+import { useDebounce } from "@/hooks/use-debounce";
+import CustomPagination from "@/components/shared/custom-pagination";
+import { toast } from "sonner";
 
 type Product = {
   id: string;
@@ -153,34 +80,59 @@ type Product = {
   image: string | null;
   category_id: string;
   is_available: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>(dummyProducts);
+  // Search and pagination states
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [availabilityFilter, setAvailabilityFilter] = useState<boolean | null>(
-    null
-  );
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(12);
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [availabilityFilter, setAvailabilityFilter] = useState<string>("");
+
+  // Debounced search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
+  // Build params for API call
+  const params = {
+    page: currentPage,
+    limit: pageSize,
+    search: debouncedSearchQuery,
+    category_id: categoryFilter,
+    is_available: availabilityFilter,
+  };
+
+  const {
+    data: productData,
+    isLoading,
+    error,
+  } = useGetProductsQuery(sanitizeParams(params));
+
+  const { data: categoryData } = useGetCategoriesQuery({});
+  const categories = categoryData?.data || [];
+
+  const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
+  const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
+  const [updateProductAvailability] = useUpdateProductAvailabilityMutation();
+  const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
+
+  const products = productData?.data || [];
+  const totalPages = productData?.meta?.total_pages || 1;
+  const totalItems = productData?.meta?.total || 0;
+
+  // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter
-      ? product.category_id === categoryFilter
-      : true;
-    const matchesAvailability =
-      availabilityFilter !== null
-        ? product.is_available === availabilityFilter
-        : true;
-    return matchesSearch && matchesCategory && matchesAvailability;
-  });
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, categoryFilter, availabilityFilter]);
 
   const handleEdit = (product: Product) => {
     setSelectedProduct(product);
@@ -192,84 +144,170 @@ export default function ProductsPage() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    if (productToDelete) {
-      setProducts(
-        products.filter((product) => product.id !== productToDelete.id)
-      );
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete?.id) {
+      toast.error("Invalid product selected for deletion");
+      return;
+    }
+
+    try {
+      await deleteProduct(productToDelete.id).unwrap();
       setDeleteDialogOpen(false);
       setProductToDelete(null);
+      toast.success("Product deleted successfully");
+    } catch (error: any) {
+      if (error?.data?.message) {
+        toast.error(error.data.message);
+      } else if (error?.message) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to delete product. Please try again.");
+      }
+      console.error("Delete product error:", error);
     }
   };
 
-  const handleToggleAvailability = (id: string) => {
-    setProducts(
-      products.map((product) =>
-        product.id === id
-          ? { ...product, is_available: !product.is_available }
-          : product
-      )
-    );
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
 
   const addFormik = useFormik({
     initialValues: {
       name: "",
       price: "",
-      image: "/placeholder.svg?height=200&width=200",
+      image: "",
       category_id: "",
       is_available: true,
     },
     validationSchema: productSchema,
-    onSubmit: (values) => {
-      const newProduct = {
-        id: Math.random().toString(36).substring(2, 9),
-        name: values.name,
-        price: Number.parseFloat(values.price),
-        image: values.image,
-        category_id: values.category_id,
-        is_available: values.is_available,
-      };
+    onSubmit: async (values) => {
+      try {
+        const formData = new FormData();
+        formData.append("name", values.name);
+        formData.append("price", values.price);
+        formData.append("category_id", values.category_id);
+        formData.append("is_available", values.is_available.toString());
 
-      setProducts([...products, newProduct]);
-      setIsAddDialogOpen(false);
-      addFormik.resetForm();
+        if (values.image) {
+          formData.append("image", values.image);
+        }
+
+        await createProduct(formData).unwrap();
+        setIsAddDialogOpen(false);
+        addFormik.resetForm();
+        toast.success("Product created successfully");
+      } catch (error: any) {
+        if (error?.data?.message) {
+          toast.error(error.data.message);
+        } else if (error?.message) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to create product. Please try again.");
+        }
+        console.error("Create product error:", error);
+      }
     },
   });
 
   const editFormik = useFormik({
     initialValues: {
-      name: selectedProduct?.name || "",
-      price: selectedProduct?.price.toString() || "",
-      image: selectedProduct?.image || "",
-      category_id: selectedProduct?.category_id || "",
-      is_available: selectedProduct?.is_available || true,
+      name: selectedProduct?.name,
+      price: selectedProduct?.price.toString(),
+      image: "",
+      category_id: selectedProduct?.category_id,
+      is_available: selectedProduct?.is_available,
     },
     validationSchema: productSchema,
     enableReinitialize: true,
-    onSubmit: (values) => {
-      setProducts(
-        products.map((product) =>
-          product.id === selectedProduct?.id
-            ? {
-                ...product,
-                name: values.name,
-                price: Number.parseFloat(values.price),
-                image: values.image,
-                category_id: values.category_id,
-                is_available: values.is_available,
-              }
-            : product
-        )
-      );
+    onSubmit: async (values) => {
+      if (!selectedProduct?.id) {
+        toast.error("Invalid product selected for update");
+        return;
+      }
 
-      setIsEditDialogOpen(false);
+      try {
+        const formData = new FormData();
+        formData.append("name", values.name || "");
+        formData.append("price", values.price || "");
+        formData.append("category_id", values.category_id || "");
+        formData.append("is_available", values.is_available?.toString() || "");
+
+        if (values.image) {
+          formData.append("image", values.image);
+        }
+
+        await updateProduct({
+          id: selectedProduct.id,
+          data: formData,
+        }).unwrap();
+        setIsEditDialogOpen(false);
+        setSelectedProduct(null);
+        editFormik.resetForm();
+        toast.success("Product updated successfully");
+      } catch (error: any) {
+        if (error?.data?.message) {
+          toast.error(error.data.message);
+        } else if (error?.message) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to update product. Please try again.");
+        }
+        console.error("Update product error:", error);
+      }
     },
   });
 
+  // Loading component
+  const LoadingState = () => (
+    <div className="flex items-center justify-center py-8">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <span className="ml-2 text-muted-foreground">Loading products...</span>
+    </div>
+  );
+
+  // Error component
+  const ErrorState = () => (
+    <div className="text-center py-8">
+      <p className="text-red-500 mb-2">Failed to load products</p>
+      <Button variant="outline" onClick={() => window.location.reload()}>
+        Try Again
+      </Button>
+    </div>
+  );
+
+  // Empty state component
+  const EmptyState = () => (
+    <div className="text-center py-8 text-muted-foreground">
+      {debouncedSearchQuery || categoryFilter || availabilityFilter ? (
+        <div>
+          <p className="mb-2">No products found matching your filters</p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSearchQuery("");
+              setCategoryFilter("");
+              setAvailabilityFilter("");
+            }}
+          >
+            Clear Filters
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <p className="mb-2">No products found</p>
+          <p className="text-sm">Create your first product to get started</p>
+        </div>
+      )}
+    </div>
+  );
+
   // Product Card Component for mobile view
   const ProductCard = ({ product }: { product: Product }) => (
-    <Card key={product.id}>
+    <Card>
       <CardContent className="p-0">
         <div className="p-4">
           <div className="flex justify-between w-full">
@@ -282,11 +320,7 @@ export default function ProductsPage() {
             />
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                >
+                <Button variant="ghost" size="icon">
                   <MoreHorizontal className="h-4 w-4" />
                   <span className="sr-only">Open menu</span>
                 </Button>
@@ -297,7 +331,7 @@ export default function ProductsPage() {
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="text-red-600 focus:text-red-600"
+                  className="text-red-600"
                   onClick={() => handleDeleteClick(product)}
                 >
                   <Trash className="mr-2 h-4 w-4" />
@@ -307,48 +341,36 @@ export default function ProductsPage() {
             </DropdownMenu>
           </div>
 
-          {/* Content Section */}
-          <div className="space-y-3 mt-3">
-            {/* Header with title and actions */}
+          <div className="mt-4 space-y-3">
             <div>
-              <div>
-                <h3 className="font-semibold text-base sm:text-sm lg:text-base line-clamp-2 leading-tight">
-                  {product.name}
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {
-                    dummyCategories.find((c) => c.id === product.category_id)
-                      ?.name
-                  }
-                </p>
-              </div>
+              <h3 className="font-semibold text-base">{product.name}</h3>
+              <p className="text-sm text-muted-foreground">
+                {
+                  categories.find((c: any) => c.id === product.category_id)
+                    ?.name
+                }
+              </p>
             </div>
 
-            {/* Price */}
-            <div className="flex items-center">
-              <span className="text-lg sm:text-base font-bold text-primary">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Price</span>
+              <span className="font-medium">
                 {formatCurrency(product.price)}
               </span>
             </div>
 
-            {/* Availability Toggle */}
-            <div className="flex items-center justify-between pt-2 border-t border-border/50">
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={product.is_available}
-                  onCheckedChange={() => handleToggleAvailability(product.id)}
-                  className="data-[state=checked]:bg-green-600"
-                />
-                <span
-                  className={`text-sm font-medium ${
-                    product.is_available
-                      ? "text-green-700 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  {product.is_available ? "Available" : "Unavailable"}
-                </span>
-              </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Status</span>
+              <Badge
+                variant="outline"
+                className={
+                  product.is_available
+                    ? "bg-green-50 text-green-600 border-green-200"
+                    : "bg-red-50 text-red-600 border-red-200"
+                }
+              >
+                {product.is_available ? "Available" : "Unavailable"}
+              </Badge>
             </div>
           </div>
         </div>
@@ -359,7 +381,14 @@ export default function ProductsPage() {
   return (
     <div className="p-6">
       <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
-        <h1 className="text-2xl font-bold">Products</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Products</h1>
+          {!isLoading && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {totalItems} product{totalItems !== 1 ? "s" : ""} found
+            </p>
+          )}
+        </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -372,7 +401,7 @@ export default function ProductsPage() {
               <DialogHeader>
                 <DialogTitle>Add New Product</DialogTitle>
                 <DialogDescription>
-                  Add a new product to your restaurant menu.
+                  Add a new product to your inventory.
                 </DialogDescription>
               </DialogHeader>
 
@@ -426,7 +455,7 @@ export default function ProductsPage() {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {dummyCategories.map((category) => (
+                      {categories.map((category: any) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}
                         </SelectItem>
@@ -442,7 +471,11 @@ export default function ProductsPage() {
                 </div>
 
                 <ImgUpload
-                  value={addFormik.values.image}
+                  value={
+                    addFormik.values.image
+                      ? new File([addFormik.values.image], "product-image")
+                      : null
+                  }
                   onChange={(value) => addFormik.setFieldValue("image", value)}
                   onRemove={() => addFormik.setFieldValue("image", "")}
                   label="Product Image"
@@ -463,38 +496,41 @@ export default function ProductsPage() {
               </div>
 
               <DialogFooter>
-                <Button type="submit">Add Product</Button>
+                <Button type="submit" disabled={isCreating}>
+                  {isCreating ? "Creating..." : "Add Product"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="flex flex-col space-y-2 lg:space-y-0 lg:flex-row lg:items-center lg:justify-between mb-6">
-        <div className="relative w-full lg:w-64">
+      {/* Filters */}
+      <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
+        <div className="relative w-full md:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
             placeholder="Search products..."
             className="pl-8"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
           />
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap gap-2">
           <Select
             value={categoryFilter || "all"}
             onValueChange={(value) =>
-              setCategoryFilter(value === "all" ? null : value)
+              setCategoryFilter(value === "all" ? "" : value)
             }
           >
-            <SelectTrigger className="sm:w-[180px] overflow-hidden">
+            <SelectTrigger className="sm:w-[180px]">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
-              {dummyCategories.map((category) => (
+              {categories.map((category: any) => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.name}
                 </SelectItem>
@@ -503,18 +539,12 @@ export default function ProductsPage() {
           </Select>
 
           <Select
-            value={
-              availabilityFilter === null ? "" : availabilityFilter.toString()
+            value={availabilityFilter || "all"}
+            onValueChange={(value) =>
+              setAvailabilityFilter(value === "all" ? "" : value)
             }
-            onValueChange={(value) => {
-              if (value === "") {
-                setAvailabilityFilter(null);
-              } else {
-                setAvailabilityFilter(value === "true");
-              }
-            }}
           >
-            <SelectTrigger className="sm:w-[180px] overflow-hidden">
+            <SelectTrigger className="sm:w-[180px]">
               <SelectValue placeholder="All availability" />
             </SelectTrigger>
             <SelectContent>
@@ -526,103 +556,122 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Desktop Table View */}
-      <div className="hidden lg:block border rounded-md bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[80px]">Image</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead className="text-center">Availability</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredProducts.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  No products found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
-                    <div className="w-10 h-10 relative rounded overflow-hidden">
-                      <Image
-                        src={product.image || Placeholder}
-                        alt={product.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>
-                    {
-                      dummyCategories.find((c) => c.id === product.category_id)
-                        ?.name
-                    }
-                  </TableCell>
-                  <TableCell>{formatCurrency(product.price)}</TableCell>
-                  <TableCell className="text-center">
-                    <Switch
-                      checked={product.is_available}
-                      onCheckedChange={() =>
-                        handleToggleAvailability(product.id)
-                      }
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu modal={false}>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(product)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => handleDeleteClick(product)}
-                        >
-                          <Trash className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+      {/* Content */}
+      {error ? (
+        <ErrorState />
+      ) : isLoading ? (
+        <LoadingState />
+      ) : products.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden md:block border rounded-md bg-white">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[80px]">Image</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead className="text-center">Availability</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Mobile Card View */}
-      <div className="lg:hidden space-y-2">
-        {filteredProducts.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No products found
+              </TableHeader>
+              <TableBody>
+                {products.map((product: any) => (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <div className="w-10 h-10 relative rounded overflow-hidden">
+                        <Image
+                          src={product.image || Placeholder}
+                          alt={product.name}
+                          width={100}
+                          height={100}
+                          className="object-cover"
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {product.name}
+                    </TableCell>
+                    <TableCell>
+                      {
+                        categories.find(
+                          (c: any) => c.id === product.category_id
+                        )?.name
+                      }
+                    </TableCell>
+                    <TableCell>{formatCurrency(product.price)}</TableCell>
+                    <TableCell className="text-center">
+                      <Switch
+                        checked={product.is_available}
+                        onCheckedChange={async () => {
+                          try {
+                            await updateProductAvailability({
+                              id: product.id,
+                              data: {
+                                is_available: !product.is_available,
+                              },
+                            }).unwrap();
+                            toast.success("Product availability updated");
+                          } catch (error: any) {
+                            console.log(error);
+                            toast.error(
+                              "Failed to update product availability"
+                            );
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(product)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => handleDeleteClick(product)}
+                          >
+                            <Trash className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredProducts.map((product) => (
+
+          {/* Mobile Card View */}
+          <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {products.map((product: any) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
-        )}
-      </div>
 
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <CustomPagination
+              params={{ page: currentPage }}
+              totalPages={totalPages}
+              handlePageChange={handlePageChange}
+            />
+          )}
+        </>
+      )}
+
+      {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
           <form onSubmit={editFormik.handleSubmit}>
@@ -683,7 +732,7 @@ export default function ProductsPage() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {dummyCategories.map((category) => (
+                    {categories.map((category: any) => (
                       <SelectItem key={category.id} value={category.id}>
                         {category.name}
                       </SelectItem>
@@ -698,12 +747,38 @@ export default function ProductsPage() {
                   )}
               </div>
 
+              {selectedProduct?.image && (
+                <div>
+                  <Label>Current Image</Label>
+                  <div className="relative w-full h-32 rounded-lg overflow-hidden border mb-2">
+                    <Image
+                      src={selectedProduct.image}
+                      alt={selectedProduct.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+              )}
+
               <ImgUpload
-                value={editFormik.values.image}
+                value={
+                  editFormik.values.image
+                    ? new File([editFormik.values.image], "product-image")
+                    : null
+                }
                 onChange={(value) => editFormik.setFieldValue("image", value)}
                 onRemove={() => editFormik.setFieldValue("image", "")}
-                label="Product Image"
-                placeholder="Upload product image"
+                label={
+                  selectedProduct?.image
+                    ? "New Product Image"
+                    : "Upload Product Image"
+                }
+                placeholder={
+                  selectedProduct?.image
+                    ? "Upload new image"
+                    : "Upload product image"
+                }
               />
 
               <div className="flex items-center space-x-2">
@@ -720,7 +795,9 @@ export default function ProductsPage() {
             </div>
 
             <DialogFooter>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isUpdating}>
+                {isUpdating ? "Updating..." : "Save Changes"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -730,19 +807,20 @@ export default function ProductsPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Product</AlertDialogTitle>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{productToDelete?.name}
-              &quot;? This action cannot be undone.
+              This action cannot be undone. This will permanently delete the
+              product &quot;{productToDelete?.name}&quot;.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-red-600 hover:bg-red-700"
+              disabled={isDeleting}
             >
-              Delete
+              {isDeleting ? "Deleting..." : "Delete Product"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

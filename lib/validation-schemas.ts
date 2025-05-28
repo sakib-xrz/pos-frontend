@@ -14,7 +14,6 @@ export const productSchema = Yup.object({
   price: Yup.number()
     .positive("Price must be positive")
     .required("Price is required"),
-  image: Yup.string().required("Image is required"),
   is_available: Yup.boolean().default(true),
   category_id: Yup.string().required("Category is required"),
 });
