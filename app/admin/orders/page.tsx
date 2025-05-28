@@ -35,53 +35,61 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/utils";
-import { MoreHorizontal, Search, Eye } from "lucide-react";
+import { CalendarIcon, MoreHorizontal, Search, X } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
-// Dummy data
+// Example order data structure
 const dummyOrders = [
   {
-    id: "order1",
-    total_amount: 32.97,
+    id: "523c961a-9f2e-49ed-af76-2ad575972a56",
+    order_number: "A9210D",
+    total_amount: 500,
     status: "PAID",
     payment_type: "CASH",
-    created_by: "user1",
-    created_at: "2023-05-23T12:34:56Z",
-    user: { name: "John Doe" },
+    created_at: "2025-05-28T19:51:50.241Z",
+    user: { name: "Md Sakibul Islam" },
   },
   {
     id: "order2",
+    order_number: "B4567E",
     total_amount: 45.5,
     status: "OPEN",
     payment_type: "CARD",
-    created_by: "user2",
-    created_at: "2023-05-23T13:45:12Z",
+    created_at: "2025-05-27T13:45:12Z",
     user: { name: "Jane Smith" },
   },
   {
     id: "order3",
+    order_number: "C7890F",
     total_amount: 22.75,
     status: "CANCELLED",
     payment_type: "CASH",
-    created_by: "user1",
-    created_at: "2023-05-23T10:15:30Z",
+    created_at: "2025-05-26T10:15:30Z",
     user: { name: "John Doe" },
   },
   {
     id: "order4",
+    order_number: "D1234G",
     total_amount: 67.25,
     status: "PAID",
     payment_type: "CARD",
-    created_by: "user3",
-    created_at: "2023-05-23T18:22:45Z",
+    created_at: "2025-05-25T18:22:45Z",
     user: { name: "Robert Johnson" },
   },
   {
     id: "order5",
+    order_number: "E5678H",
     total_amount: 18.5,
     status: "OPEN",
     payment_type: "CASH",
-    created_by: "user2",
-    created_at: "2023-05-23T19:05:10Z",
+    created_at: "2025-05-24T19:05:10Z",
     user: { name: "Jane Smith" },
   },
 ];
@@ -89,7 +97,7 @@ const dummyOrders = [
 const dummyOrderItems = [
   {
     id: "item1",
-    order_id: "order1",
+    order_id: "523c961a-9f2e-49ed-af76-2ad575972a56",
     product_id: "1",
     name: "Cheeseburger",
     price: 8.99,
@@ -97,7 +105,7 @@ const dummyOrderItems = [
   },
   {
     id: "item2",
-    order_id: "order1",
+    order_id: "523c961a-9f2e-49ed-af76-2ad575972a56",
     product_id: "8",
     name: "French Fries",
     price: 3.99,
@@ -105,7 +113,7 @@ const dummyOrderItems = [
   },
   {
     id: "item3",
-    order_id: "order1",
+    order_id: "523c961a-9f2e-49ed-af76-2ad575972a56",
     product_id: "6",
     name: "Soda",
     price: 2.99,
@@ -139,10 +147,10 @@ const dummyOrderItems = [
 
 type Order = {
   id: string;
+  order_number: string;
   total_amount: number;
   status: string;
   payment_type: string;
-  created_by: string;
   created_at: string;
   user: { name: string };
 };
@@ -152,18 +160,43 @@ export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState<Date | null>(
+    new Date(new Date().setDate(new Date().getDate() - 30))
+  );
+  const [dateTo, setDateTo] = useState<Date | null>(new Date());
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const filteredOrders = orders.filter((order) => {
+    // Search by order ID or order number
     const matchesSearch =
+      searchQuery === "" ||
       order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.user.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Filter by status
     const matchesStatus = statusFilter ? order.status === statusFilter : true;
+
+    // Filter by payment type
     const matchesPayment = paymentFilter
       ? order.payment_type === paymentFilter
       : true;
-    return matchesSearch && matchesStatus && matchesPayment;
+
+    // Filter by date range
+    const orderDate = new Date(order.created_at);
+    const matchesDateFrom = dateFrom ? orderDate >= dateFrom : true;
+    const matchesDateTo = dateTo
+      ? orderDate <= new Date(dateTo.setHours(23, 59, 59, 999))
+      : true;
+
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesPayment &&
+      matchesDateFrom &&
+      matchesDateTo
+    );
   });
 
   const handleViewOrder = (order: Order) => {
@@ -215,6 +248,14 @@ export default function OrdersPage() {
     return dummyOrderItems.filter((item) => item.order_id === orderId);
   };
 
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter(null);
+    setPaymentFilter(null);
+    setDateFrom(new Date(new Date().setDate(new Date().getDate() - 30)));
+    setDateTo(new Date());
+  };
+
   // Order Card Component for mobile view
   const OrderCard = ({ order }: { order: Order }) => (
     <Card key={order.id}>
@@ -223,7 +264,9 @@ export default function OrdersPage() {
           <div className="flex justify-between items-start w-full">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <h3 className="font-semibold text-base">#{order.id}</h3>
+                <h3 className="font-semibold text-base">
+                  #{order.order_number}
+                </h3>
                 {getStatusBadge(order.status)}
               </div>
               <p className="text-sm text-muted-foreground mb-1">
@@ -247,7 +290,6 @@ export default function OrdersPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => handleViewOrder(order)}>
-                  <Eye className="h-4 w-4" />
                   View Details
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -299,24 +341,28 @@ export default function OrdersPage() {
         <h1 className="text-2xl font-bold">Orders</h1>
       </div>
 
-      <div className="flex flex-col space-y-2 lg:space-y-0 lg:flex-row lg:items-center lg:justify-between mb-6">
-        <div className="relative w-full lg:w-64">
+      {/* Search and Filters */}
+      <div className="space-y-4 mb-6">
+        {/* Search */}
+        <div className="relative w-full">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search products..."
+            placeholder="Search by order ID"
             className="pl-8"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
-        <div className="flex items-center space-x-2">
+        {/* Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Status Filter */}
           <Select
             value={statusFilter || ""}
             onValueChange={(value) => setStatusFilter(value || null)}
           >
-            <SelectTrigger className="sm:w-[180px] overflow-hidden">
+            <SelectTrigger>
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -327,11 +373,12 @@ export default function OrdersPage() {
             </SelectContent>
           </Select>
 
+          {/* Payment Type Filter */}
           <Select
             value={paymentFilter || ""}
             onValueChange={(value) => setPaymentFilter(value || null)}
           >
-            <SelectTrigger className="sm:w-[180px] overflow-hidden">
+            <SelectTrigger>
               <SelectValue placeholder="All payment types" />
             </SelectTrigger>
             <SelectContent>
@@ -340,6 +387,67 @@ export default function OrdersPage() {
               <SelectItem value="CARD">Card</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Date From Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal bg-transparent",
+                  !dateFrom && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFrom ? format(dateFrom, "PPP") : "Date from"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateFrom || undefined}
+                onSelect={(date) => setDateFrom(date || null)}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+
+          {/* Date To Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal bg-transparent",
+                  !dateTo && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateTo ? format(dateTo, "PPP") : "Date to"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateTo || undefined}
+                onSelect={(date) => setDateTo(date || null)}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Clear Filters Button */}
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearFilters}
+            className="flex items-center gap-1"
+          >
+            <X className="h-4 w-4" />
+            Clear Filters
+          </Button>
         </div>
       </div>
 
@@ -348,7 +456,7 @@ export default function OrdersPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Order ID</TableHead>
+              <TableHead>Order Id</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Staff</TableHead>
               <TableHead>Total</TableHead>
@@ -361,7 +469,7 @@ export default function OrdersPage() {
             {filteredOrders.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No orders found
@@ -370,7 +478,9 @@ export default function OrdersPage() {
             ) : (
               filteredOrders.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id}</TableCell>
+                  <TableCell className="font-medium">
+                    #{order.order_number}
+                  </TableCell>
                   <TableCell>
                     {new Date(order.created_at).toLocaleString()}
                   </TableCell>
@@ -390,7 +500,6 @@ export default function OrdersPage() {
                         <DropdownMenuItem
                           onClick={() => handleViewOrder(order)}
                         >
-                          <Eye className="h-4 w-4" />
                           View Details
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -447,7 +556,9 @@ export default function OrdersPage() {
         >
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
-            <DialogDescription>Order #{selectedOrder?.id}</DialogDescription>
+            <DialogDescription>
+              Order #{selectedOrder?.order_number}
+            </DialogDescription>
           </DialogHeader>
 
           {selectedOrder && (
