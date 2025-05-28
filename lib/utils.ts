@@ -51,6 +51,6 @@ export function sanitizeParams<T extends Record<string, unknown>>(
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: "BDT",
   }).format(amount);
 }

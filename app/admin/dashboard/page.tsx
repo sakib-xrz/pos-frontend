@@ -242,13 +242,13 @@ export default function DashboardPage() {
                         interval={0}
                       />
                       <YAxis
-                        tickFormatter={(value) => `$${value}`}
+                        tickFormatter={(value) => `BDT ${value}`}
                         tick={{ fontSize: 12 }}
                       />
                       <ChartTooltip
                         content={
                           <ChartTooltipContent
-                            formatter={(value) => [`$${value}`, " Revenue"]}
+                            formatter={(value) => [`BDT ${value}`, " Revenue"]}
                           />
                         }
                       />
@@ -309,7 +309,7 @@ export default function DashboardPage() {
                       <ChartTooltip
                         content={
                           <ChartTooltipContent
-                            formatter={(value) => [`${value}%`, "Percentage"]}
+                            formatter={(value) => [`${value}%`, " Percentage"]}
                           />
                         }
                       />
