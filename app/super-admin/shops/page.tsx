@@ -523,8 +523,7 @@ export default function ShopsPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="RESTAURANT">Restaurant</SelectItem>
-                          <SelectItem value="RETAIL">Retail</SelectItem>
-                          <SelectItem value="CAFE">Cafe</SelectItem>
+                          <SelectItem value="PHARMACY">Pharmacy</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
