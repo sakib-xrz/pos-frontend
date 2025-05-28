@@ -41,3 +41,28 @@ export const couponSchema = Yup.object({
   is_active: Yup.boolean().default(true),
   expires_at: Yup.date().nullable(),
 });
+
+export const userSchema = Yup.object({
+  name: Yup.string().required("Name is required"),
+  email: Yup.string()
+    .email("Invalid email address")
+    .required("Email is required"),
+  password: Yup.string()
+    .min(8, "Password must be at least 8 characters")
+    .required("Password is required"),
+  role: Yup.string().oneOf(["ADMIN", "STAFF"]).required("Role is required"),
+});
+
+export const editUserSchema = Yup.object({
+  name: Yup.string().required("Name is required"),
+  email: Yup.string()
+    .email("Invalid email address")
+    .required("Email is required"),
+  role: Yup.string().oneOf(["ADMIN", "STAFF"]).required("Role is required"),
+});
+
+export const resetPasswordSchema = Yup.object({
+  new_password: Yup.string()
+    .min(6, "Password must be at least 6 characters")
+    .required("Password is required"),
+});

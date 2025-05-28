@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -48,7 +48,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useFormik } from "formik";
-import * as Yup from "yup";
+import {
+  userSchema,
+  editUserSchema,
+  resetPasswordSchema,
+} from "@/lib/validation-schemas";
+import { sanitizeParams } from "@/lib/utils";
 import {
   Plus,
   MoreHorizontal,
@@ -58,83 +63,20 @@ import {
   Key,
   Mail,
   Calendar,
+  Loader2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
-// User validation schema
-const userSchema = Yup.object({
-  name: Yup.string().required("Name is required"),
-  email: Yup.string()
-    .email("Invalid email address")
-    .required("Email is required"),
-  password: Yup.string()
-    .min(8, "Password must be at least 8 characters")
-    .required("Password is required"),
-  role: Yup.string().oneOf(["ADMIN", "STAFF"]).required("Role is required"),
-});
-
-// Edit user validation schema (no password required)
-const editUserSchema = Yup.object({
-  name: Yup.string().required("Name is required"),
-  email: Yup.string()
-    .email("Invalid email address")
-    .required("Email is required"),
-  role: Yup.string().oneOf(["ADMIN", "STAFF"]).required("Role is required"),
-});
-
-// Reset password validation schema
-const resetPasswordSchema = Yup.object({
-  password: Yup.string()
-    .min(8, "Password must be at least 8 characters")
-    .required("Password is required"),
-  confirmPassword: Yup.string()
-    .oneOf([Yup.ref("password")], "Passwords must match")
-    .required("Confirm password is required"),
-});
-
-// Dummy data
-const dummyUsers = [
-  {
-    id: "user1",
-    name: "John Doe",
-    email: "john.doe@example.com",
-    role: "ADMIN",
-    created_at: "2023-01-15T10:30:00Z",
-    updated_at: "2023-01-15T10:30:00Z",
-  },
-  {
-    id: "user2",
-    name: "Jane Smith",
-    email: "jane.smith@example.com",
-    role: "STAFF",
-    created_at: "2023-02-20T14:45:00Z",
-    updated_at: "2023-02-20T14:45:00Z",
-  },
-  {
-    id: "user3",
-    name: "Robert Johnson",
-    email: "robert.johnson@example.com",
-    role: "STAFF",
-    created_at: "2023-03-10T09:15:00Z",
-    updated_at: "2023-03-10T09:15:00Z",
-  },
-  {
-    id: "user4",
-    name: "Emily Davis",
-    email: "emily.davis@example.com",
-    role: "STAFF",
-    created_at: "2023-04-05T11:20:00Z",
-    updated_at: "2023-04-05T11:20:00Z",
-  },
-  {
-    id: "user5",
-    name: "Michael Wilson",
-    email: "michael.wilson@example.com",
-    role: "ADMIN",
-    created_at: "2023-05-12T16:30:00Z",
-    updated_at: "2023-05-12T16:30:00Z",
-  },
-];
+import {
+  useGetUsersQuery,
+  useCreateUserMutation,
+  useUpdateUserMutation,
+  useResetPasswordMutation,
+  useDeleteUserMutation,
+} from "@/redux/features/user/userApi";
+import { useDebounce } from "@/hooks/use-debounce";
+import CustomPagination from "@/components/shared/custom-pagination";
+import { toast } from "sonner";
+import { useCurrentUser } from "@/redux/features/auth/authSlice";
 
 type User = {
   id: string;
@@ -144,10 +86,44 @@ type User = {
   created_at: string;
   updated_at: string;
 };
+
 export default function UsersPage() {
-  const [users, setUsers] = useState(dummyUsers);
+  const me = useCurrentUser();
+
+  // Search and pagination states
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(12);
+  const [roleFilter, setRoleFilter] = useState<string>("");
+
+  // Debounced search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
+  // Build params for API call
+  const params = {
+    page: currentPage,
+    limit: pageSize,
+    search: debouncedSearchQuery,
+    role: roleFilter,
+  };
+
+  const {
+    data: userData,
+    isLoading,
+    error,
+  } = useGetUsersQuery(sanitizeParams(params));
+
+  const [createUser, { isLoading: isCreating }] = useCreateUserMutation();
+  const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
+  const [resetPassword, { isLoading: isResettingPassword }] =
+    useResetPasswordMutation();
+  const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
+
+  const users = userData?.data || [];
+  const totalPages = userData?.meta?.total_pages || 1;
+  const totalItems = userData?.meta?.total || 0;
+
+  // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] =
@@ -156,13 +132,10 @@ export default function UsersPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter ? user.role === roleFilter : true;
-    return matchesSearch && matchesRole;
-  });
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, roleFilter]);
 
   const handleEdit = (user: User) => {
     setSelectedUser(user);
@@ -179,12 +152,35 @@ export default function UsersPage() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    if (userToDelete) {
-      setUsers(users.filter((user) => user.id !== userToDelete.id));
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete?.id) {
+      toast.error("Invalid user selected for deletion");
+      return;
+    }
+
+    try {
+      await deleteUser(userToDelete.id).unwrap();
       setDeleteDialogOpen(false);
       setUserToDelete(null);
+      toast.success("User deleted successfully");
+    } catch (error: any) {
+      if (error?.data?.message) {
+        toast.error(error.data.message);
+      } else if (error?.message) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to delete user. Please try again.");
+      }
+      console.error("Delete user error:", error);
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
 
   const addFormik = useFormik({
@@ -195,19 +191,22 @@ export default function UsersPage() {
       role: "STAFF",
     },
     validationSchema: userSchema,
-    onSubmit: (values) => {
-      const newUser = {
-        id: Math.random().toString(36).substring(2, 9),
-        name: values.name,
-        email: values.email,
-        role: values.role,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      setUsers([...users, newUser]);
-      setIsAddDialogOpen(false);
-      addFormik.resetForm();
+    onSubmit: async (values) => {
+      try {
+        await createUser(values).unwrap();
+        setIsAddDialogOpen(false);
+        addFormik.resetForm();
+        toast.success("User created successfully");
+      } catch (error: any) {
+        if (error?.data?.message) {
+          toast.error(error.data.message);
+        } else if (error?.message) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to create user. Please try again.");
+        }
+        console.error("Create user error:", error);
+      }
     },
   });
 
@@ -219,40 +218,69 @@ export default function UsersPage() {
     },
     validationSchema: editUserSchema,
     enableReinitialize: true,
-    onSubmit: (values) => {
-      setUsers(
-        users.map((user) =>
-          user.id === selectedUser?.id
-            ? {
-                ...user,
-                name: values.name,
-                email: values.email,
-                role: values.role,
-                updated_at: new Date().toISOString(),
-              }
-            : user
-        )
-      );
+    onSubmit: async (values) => {
+      if (!selectedUser?.id) {
+        toast.error("Invalid user selected for update");
+        return;
+      }
 
-      setIsEditDialogOpen(false);
+      try {
+        await updateUser({
+          id: selectedUser.id,
+          data: values,
+        }).unwrap();
+        setIsEditDialogOpen(false);
+        setSelectedUser(null);
+        editFormik.resetForm();
+        toast.success("User updated successfully");
+      } catch (error: any) {
+        if (error?.data?.message) {
+          toast.error(error.data.message);
+        } else if (error?.message) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to update user. Please try again.");
+        }
+        console.error("Update user error:", error);
+      }
     },
   });
 
   const resetPasswordFormik = useFormik({
     initialValues: {
-      password: "",
-      confirmPassword: "",
+      new_password: "",
     },
     validationSchema: resetPasswordSchema,
-    onSubmit: (values) => {
-      // In a real app, you would call an API to reset the password
-      console.log(
-        `Password reset for user ${selectedUser?.id}: ${values.password}`
-      );
-      setIsResetPasswordDialogOpen(false);
-      resetPasswordFormik.resetForm();
+    onSubmit: async (values) => {
+      if (!selectedUser?.id) {
+        toast.error("Invalid user selected for password reset");
+        return;
+      }
+
+      try {
+        await resetPassword({
+          id: selectedUser.id,
+          data: { new_password: values.new_password },
+        }).unwrap();
+        setIsResetPasswordDialogOpen(false);
+        resetPasswordFormik.resetForm();
+        toast.success("Password reset successfully");
+      } catch (error: any) {
+        if (error?.data?.message) {
+          toast.error(error.data.message);
+        } else if (error?.message) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to reset password. Please try again.");
+        }
+        console.error("Reset password error:", error);
+      }
     },
   });
+
+  const isMe = (id: string) => {
+    return me?.id === id;
+  };
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -279,10 +307,134 @@ export default function UsersPage() {
     }
   };
 
+  // Loading component
+  const LoadingState = () => (
+    <div className="flex items-center justify-center py-8">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <span className="ml-2 text-muted-foreground">Loading users...</span>
+    </div>
+  );
+
+  // Error component
+  const ErrorState = () => (
+    <div className="text-center py-8">
+      <p className="text-red-500 mb-2">Failed to load users</p>
+      <Button variant="outline" onClick={() => window.location.reload()}>
+        Try Again
+      </Button>
+    </div>
+  );
+
+  // Empty state component
+  const EmptyState = () => (
+    <div className="text-center py-8 text-muted-foreground">
+      {debouncedSearchQuery || roleFilter ? (
+        <div>
+          <p className="mb-2">No users found matching your filters</p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSearchQuery("");
+              setRoleFilter("");
+            }}
+          >
+            Clear Filters
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <p className="mb-2">No users found</p>
+          <p className="text-sm">Create your first user to get started</p>
+        </div>
+      )}
+    </div>
+  );
+
+  // User Card Component for mobile view
+  const UserCard = ({ user }: { user: User }) => (
+    <Card>
+      <CardContent className="p-0">
+        <div className="p-4">
+          <div className="flex justify-between w-full">
+            <Avatar className="h-20 w-20 flex-shrink-0">
+              <AvatarImage
+                src={`/placeholder.svg?height=80&width=80`}
+                alt={user.name}
+                className="object-cover"
+              />
+              <AvatarFallback className="text-xl font-semibold">
+                {user.name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" disabled={isMe(user.id)}>
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleEdit(user)}>
+                  <Edit className="h-4 w-4" />
+                  Edit User
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleResetPassword(user)}>
+                  <Key className="h-4 w-4" />
+                  Reset Password
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={() => handleDeleteClick(user)}
+                >
+                  <Trash className="h-4 w-4" />
+                  Delete User
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            <div>
+              <h3 className="font-semibold text-base">{user.name}</h3>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                {user.email}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Role</span>
+              {getRoleBadge(user.role)}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Joined</span>
+              <div className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                <span className="text-sm font-medium">
+                  {new Date(user.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="p-6">
       <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
-        <h1 className="text-2xl font-bold">Users</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Users</h1>
+          {!isLoading && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {totalItems} user{totalItems !== 1 ? "s" : ""} found
+            </p>
+          )}
+        </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -379,13 +531,16 @@ export default function UsersPage() {
               </div>
 
               <DialogFooter>
-                <Button type="submit">Add User</Button>
+                <Button type="submit" disabled={isCreating}>
+                  {isCreating ? "Creating..." : "Add User"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* Filters */}
       <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
         <div className="relative w-full md:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -394,18 +549,18 @@ export default function UsersPage() {
             placeholder="Search users..."
             className="pl-8"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
           />
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap gap-2">
           <Select
             value={roleFilter || "all"}
             onValueChange={(value) =>
-              setRoleFilter(value === "all" ? null : value)
+              setRoleFilter(value === "all" ? "" : value)
             }
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="sm:w-[180px]">
               <SelectValue placeholder="All roles" />
             </SelectTrigger>
             <SelectContent>
@@ -417,199 +572,106 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Desktop Table View */}
-      <div className="hidden lg:block border rounded-md bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Created At</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredUsers.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  No users found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredUsers.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage
-                          src={`/placeholder.svg?height=32&width=32`}
-                          alt={user.name}
-                        />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="font-medium">{user.name}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{getRoleBadge(user.role)}</TableCell>
-                  <TableCell>
-                    {new Date(user.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu modal={false}>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleResetPassword(user)}
-                        >
-                          <Key className="mr-2 h-4 w-4" />
-                          Reset Password
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEdit(user)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit User
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => handleDeleteClick(user)}
-                        >
-                          <Trash className="mr-2 h-4 w-4" />
-                          Delete User
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+      {/* Content */}
+      {error ? (
+        <ErrorState />
+      ) : isLoading ? (
+        <LoadingState />
+      ) : users.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden md:block border rounded-md bg-white">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Created At</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Mobile Card View - Similar to Products */}
-      <div className="block md:hidden">
-        <div className="space-y-3">
-          {filteredUsers.length === 0 ? (
-            <Card className="border-dashed border-2">
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <Search className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-                  <p className="text-lg font-medium text-muted-foreground">
-                    No users found
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Try adjusting your search or filters
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            filteredUsers.map((user) => (
-              <Card key={user.id}>
-                <CardContent className="p-0">
-                  <div className="p-4">
-                    <div className="flex justify-between w-full">
-                      <Avatar className="h-20 w-20 flex-shrink-0">
-                        <AvatarImage
-                          src={`/placeholder.svg?height=80&width=80`}
-                          alt={user.name}
-                          className="object-cover"
-                        />
-                        <AvatarFallback className="text-xl font-semibold">
-                          {user.name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
+              </TableHeader>
+              <TableBody>
+                {users.map((user: any) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage
+                            src={`/placeholder.svg?height=32&width=32`}
+                            alt={user.name}
+                          />
+                          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="font-medium">{user.name}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{getRoleBadge(user.role)}</TableCell>
+                    <TableCell>
+                      {new Date(user.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
                       <DropdownMenu modal={false}>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            disabled={isMe(user.id)}
                           >
                             <MoreHorizontal className="h-4 w-4" />
                             <span className="sr-only">Open menu</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(user)}>
+                            <Edit className="h-4 w-4" />
+                            Edit User
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleResetPassword(user)}
                           >
-                            <Key className="mr-2 h-4 w-4" />
+                            <Key className="h-4 w-4" />
                             Reset Password
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEdit(user)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit User
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            className="text-red-600 focus:text-red-600"
+                            className="text-red-600"
                             onClick={() => handleDeleteClick(user)}
                           >
-                            <Trash className="mr-2 h-4 w-4" />
+                            <Trash className="h-4 w-4" />
                             Delete User
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
-                    {/* Content Section */}
-                    <div className="space-y-3 mt-3">
-                      {/* Header with name and email */}
-                      <div>
-                        <div>
-                          <h3 className="font-semibold text-base sm:text-sm lg:text-base line-clamp-2 leading-tight">
-                            {user.name}
-                          </h3>
-                          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                            <Mail className="h-3 w-3 flex-shrink-0" />
-                            {user.email}
-                          </p>
-                        </div>
-                      </div>
+          {/* Mobile Card View */}
+          <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {users.map((user: any) => (
+              <UserCard key={user.id} user={user} />
+            ))}
+          </div>
 
-                      {/* Role */}
-                      <div className="flex items-center">
-                        {getRoleBadge(user.role)}
-                      </div>
-
-                      {/* Join Date and Status */}
-                      <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Calendar className="h-3 w-3 flex-shrink-0" />
-                            <span className="text-xs">Joined</span>
-                          </div>
-                          <span className="text-sm font-medium">
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                          <span className="text-xs text-green-700 dark:text-green-400 font-medium">
-                            Active
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <CustomPagination
+              params={{ page: currentPage }}
+              totalPages={totalPages}
+              handlePageChange={handlePageChange}
+            />
           )}
-        </div>
-      </div>
+        </>
+      )}
 
+      {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
           <form onSubmit={editFormik.handleSubmit}>
@@ -682,12 +744,15 @@ export default function UsersPage() {
             </div>
 
             <DialogFooter>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isUpdating}>
+                {isUpdating ? "Updating..." : "Save Changes"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
+      {/* Reset Password Dialog */}
       <Dialog
         open={isResetPasswordDialogOpen}
         onOpenChange={setIsResetPasswordDialogOpen}
@@ -703,46 +768,29 @@ export default function UsersPage() {
 
             <div className="grid gap-2 py-4">
               <div className="grid gap-1">
-                <Label htmlFor="password">New Password</Label>
+                <Label htmlFor="new_password">New Password</Label>
                 <Input
-                  id="password"
-                  name="password"
+                  id="new_password"
+                  name="new_password"
                   type="password"
                   placeholder="New password"
                   onChange={resetPasswordFormik.handleChange}
                   onBlur={resetPasswordFormik.handleBlur}
-                  value={resetPasswordFormik.values.password}
+                  value={resetPasswordFormik.values.new_password}
                 />
-                {resetPasswordFormik.touched.password &&
-                  resetPasswordFormik.errors.password && (
+                {resetPasswordFormik.touched.new_password &&
+                  resetPasswordFormik.errors.new_password && (
                     <p className="text-sm text-red-500">
-                      {resetPasswordFormik.errors.password}
-                    </p>
-                  )}
-              </div>
-
-              <div className="grid gap-1">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  placeholder="Confirm new password"
-                  onChange={resetPasswordFormik.handleChange}
-                  onBlur={resetPasswordFormik.handleBlur}
-                  value={resetPasswordFormik.values.confirmPassword}
-                />
-                {resetPasswordFormik.touched.confirmPassword &&
-                  resetPasswordFormik.errors.confirmPassword && (
-                    <p className="text-sm text-red-500">
-                      {resetPasswordFormik.errors.confirmPassword}
+                      {resetPasswordFormik.errors.new_password}
                     </p>
                   )}
               </div>
             </div>
 
             <DialogFooter>
-              <Button type="submit">Reset Password</Button>
+              <Button type="submit" disabled={isResettingPassword}>
+                {isResettingPassword ? "Resetting..." : "Reset Password"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -752,20 +800,21 @@ export default function UsersPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{userToDelete?.name}&quot;?
-              This action cannot be undone and will permanently remove the user
-              account.
+              This action cannot be undone. This will permanently delete the
+              user &quot;{userToDelete?.name}&quot; and remove all associated
+              data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-red-600 hover:bg-red-700"
+              disabled={isDeleting}
             >
-              Delete User
+              {isDeleting ? "Deleting..." : "Delete User"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

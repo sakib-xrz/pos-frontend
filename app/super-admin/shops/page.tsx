@@ -356,14 +356,14 @@ export default function ShopsPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleUpdate(shop)}>
-                <Edit className="mr-2 h-4 w-4" />
+                <Edit className="h-4 w-4" />
                 Update Plan
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-red-600"
                 onClick={() => handleDeleteClick(shop)}
               >
-                <Trash className="mr-2 h-4 w-4" />
+                <Trash className="h-4 w-4" />
                 Delete Shop
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -784,14 +784,14 @@ export default function ShopsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleUpdate(shop)}>
-                            <Edit className="mr-2 h-4 w-4" />
+                            <Edit className="h-4 w-4" />
                             Update Plan
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-red-600"
                             onClick={() => handleDeleteClick(shop)}
                           >
-                            <Trash className="mr-2 h-4 w-4" />
+                            <Trash className="h-4 w-4" />
                             Delete Shop
                           </DropdownMenuItem>
                         </DropdownMenuContent>

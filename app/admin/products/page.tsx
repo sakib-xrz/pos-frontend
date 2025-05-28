@@ -327,14 +327,14 @@ export default function ProductsPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => handleEdit(product)}>
-                  <Edit className="mr-2 h-4 w-4" />
+                  <Edit className="h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="text-red-600"
                   onClick={() => handleDeleteClick(product)}
                 >
-                  <Trash className="mr-2 h-4 w-4" />
+                  <Trash className="h-4 w-4" />
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -634,14 +634,14 @@ export default function ProductsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleEdit(product)}>
-                            <Edit className="mr-2 h-4 w-4" />
+                            <Edit className="h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-red-600"
                             onClick={() => handleDeleteClick(product)}
                           >
-                            <Trash className="mr-2 h-4 w-4" />
+                            <Trash className="h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
