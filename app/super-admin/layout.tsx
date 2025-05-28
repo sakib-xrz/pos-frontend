@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard,
@@ -41,9 +41,17 @@ export default function SuperAdminLayout({
   children: React.ReactNode;
 }>) {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
   const user = useCurrentUser();
+
+  const isActive = (href: string) => {
+    if (href === "/change-password") {
+      return pathname === href;
+    }
+    return pathname.startsWith(href);
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -73,7 +81,11 @@ export default function SuperAdminLayout({
                     <Link
                       href={item.href}
                       onClick={() => setOpen(false)}
-                      className="flex items-center px-2 py-2 rounded-md hover:bg-gray-100"
+                      className={`flex items-center px-2 py-2 rounded-md transition-colors ${
+                        isActive(item.href)
+                          ? "bg-purple-100 text-purple-700 border-l-4 border-purple-500"
+                          : "hover:bg-gray-100 border-l-4 border-transparent"
+                      }`}
                     >
                       {item.icon}
                       {item.label}
@@ -123,7 +135,11 @@ export default function SuperAdminLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center px-2 py-2 rounded-md hover:bg-gray-100"
+                className={`flex items-center px-2 py-2 rounded-md transition-colors ${
+                  isActive(item.href)
+                    ? "bg-purple-100 text-purple-700 border-l-4 border-purple-500"
+                    : "hover:bg-gray-100 border-l-4 border-transparent"
+                }`}
               >
                 {item.icon}
                 {item.label}
