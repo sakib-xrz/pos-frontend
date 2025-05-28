@@ -176,11 +176,15 @@ export default function SettingsPage() {
             <div className="space-y-1">
               <h3 className="text-lg font-medium">Business Logo</h3>
               <ImgUpload
-                value={formik.values.logo_url}
-                onChange={(value: string) =>
+                value={
+                  formik.values.logo_url
+                    ? new File([formik.values.logo_url], "logo")
+                    : null
+                }
+                onChange={(value: File | null) =>
                   formik.setFieldValue("logo_url", value)
                 }
-                onRemove={() => formik.setFieldValue("logo_url", "")}
+                onRemove={() => formik.setFieldValue("logo_url", null)}
                 label="Business Logo"
                 placeholder="Upload your business logo"
               />
