@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,8 +34,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency } from "@/lib/utils";
-import { CalendarIcon, MoreHorizontal, Search, X } from "lucide-react";
+import { formatCurrency, sanitizeParams } from "@/lib/utils";
+import { CalendarIcon, MoreHorizontal, Search, X, Loader2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -44,170 +44,136 @@ import {
 } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  useGetOrdersQuery,
+  useGetOrderQuery,
+  useUpdateOrderStatusMutation,
+} from "@/redux/features/order/orderApi";
+import { useDebounce } from "@/hooks/use-debounce";
+import CustomPagination from "@/components/shared/custom-pagination";
+import { toast } from "sonner";
 
-// Example order data structure
-const dummyOrders = [
-  {
-    id: "523c961a-9f2e-49ed-af76-2ad575972a56",
-    order_number: "A9210D",
-    total_amount: 500,
-    status: "PAID",
-    payment_type: "CASH",
-    created_at: "2025-05-28T19:51:50.241Z",
-    user: { name: "Md Sakibul Islam" },
-  },
-  {
-    id: "order2",
-    order_number: "B4567E",
-    total_amount: 45.5,
-    status: "OPEN",
-    payment_type: "CARD",
-    created_at: "2025-05-27T13:45:12Z",
-    user: { name: "Jane Smith" },
-  },
-  {
-    id: "order3",
-    order_number: "C7890F",
-    total_amount: 22.75,
-    status: "CANCELLED",
-    payment_type: "CASH",
-    created_at: "2025-05-26T10:15:30Z",
-    user: { name: "John Doe" },
-  },
-  {
-    id: "order4",
-    order_number: "D1234G",
-    total_amount: 67.25,
-    status: "PAID",
-    payment_type: "CARD",
-    created_at: "2025-05-25T18:22:45Z",
-    user: { name: "Robert Johnson" },
-  },
-  {
-    id: "order5",
-    order_number: "E5678H",
-    total_amount: 18.5,
-    status: "OPEN",
-    payment_type: "CASH",
-    created_at: "2025-05-24T19:05:10Z",
-    user: { name: "Jane Smith" },
-  },
-];
+type Product = {
+  id: string;
+  name: string;
+  price: string;
+  image: string;
+  category: {
+    id: string;
+    name: string;
+  };
+};
 
-const dummyOrderItems = [
-  {
-    id: "item1",
-    order_id: "523c961a-9f2e-49ed-af76-2ad575972a56",
-    product_id: "1",
-    name: "Cheeseburger",
-    price: 8.99,
-    quantity: 2,
-  },
-  {
-    id: "item2",
-    order_id: "523c961a-9f2e-49ed-af76-2ad575972a56",
-    product_id: "8",
-    name: "French Fries",
-    price: 3.99,
-    quantity: 1,
-  },
-  {
-    id: "item3",
-    order_id: "523c961a-9f2e-49ed-af76-2ad575972a56",
-    product_id: "6",
-    name: "Soda",
-    price: 2.99,
-    quantity: 2,
-  },
-  {
-    id: "item4",
-    order_id: "order2",
-    product_id: "4",
-    name: "Margherita Pizza",
-    price: 12.99,
-    quantity: 1,
-  },
-  {
-    id: "item5",
-    order_id: "order2",
-    product_id: "5",
-    name: "Pepperoni Pizza",
-    price: 14.99,
-    quantity: 2,
-  },
-  {
-    id: "item6",
-    order_id: "order2",
-    product_id: "7",
-    name: "Water",
-    price: 1.99,
-    quantity: 1,
-  },
-];
+type OrderItem = {
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  price: string;
+  product: Product;
+};
 
 type Order = {
   id: string;
   order_number: string;
-  total_amount: number;
+  total_amount: string | number;
   status: string;
   payment_type: string;
+  note?: string;
   created_at: string;
-  user: { name: string };
+  updated_at: string;
+  user: {
+    id: string;
+    name: string;
+    email?: string;
+    role: string;
+  };
+  order_items?: OrderItem[];
 };
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>(dummyOrders);
+  // Search and pagination states
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(12);
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [paymentFilter, setPaymentFilter] = useState<string>("");
   const [dateFrom, setDateFrom] = useState<Date | null>(
     new Date(new Date().setDate(new Date().getDate() - 30))
   );
   const [dateTo, setDateTo] = useState<Date | null>(new Date());
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  // Dialog states
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
-  const filteredOrders = orders.filter((order) => {
-    // Search by order ID or order number
-    const matchesSearch =
-      searchQuery === "" ||
-      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.user.name.toLowerCase().includes(searchQuery.toLowerCase());
+  // Debounced search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
-    // Filter by status
-    const matchesStatus = statusFilter ? order.status === statusFilter : true;
+  // Build params for API call
+  const params = {
+    page: currentPage,
+    limit: pageSize,
+    search: debouncedSearchQuery,
+    status: statusFilter,
+    payment_type: paymentFilter,
+    date_from: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
+    date_to: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined,
+  };
 
-    // Filter by payment type
-    const matchesPayment = paymentFilter
-      ? order.payment_type === paymentFilter
-      : true;
+  const {
+    data: orderData,
+    isLoading,
+    error,
+  } = useGetOrdersQuery(sanitizeParams(params));
 
-    // Filter by date range
-    const orderDate = new Date(order.created_at);
-    const matchesDateFrom = dateFrom ? orderDate >= dateFrom : true;
-    const matchesDateTo = dateTo
-      ? orderDate <= new Date(dateTo.setHours(23, 59, 59, 999))
-      : true;
+  const { data: selectedOrderData, isLoading: isLoadingOrderDetails } =
+    useGetOrderQuery(selectedOrderId, {
+      skip: !selectedOrderId,
+    });
 
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      matchesPayment &&
-      matchesDateFrom &&
-      matchesDateTo
-    );
-  });
+  const [updateOrderStatus, { isLoading: isUpdating }] =
+    useUpdateOrderStatusMutation();
+
+  const orders = orderData?.data || [];
+  const totalPages = orderData?.meta?.total_pages || 1;
+  const totalItems = orderData?.meta?.total || 0;
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, statusFilter, paymentFilter, dateFrom, dateTo]);
 
   const handleViewOrder = (order: Order) => {
-    setSelectedOrder(order);
+    setSelectedOrderId(order.id);
     setIsViewDialogOpen(true);
   };
 
-  const handleUpdateStatus = (id: string, status: string) => {
-    setOrders(
-      orders.map((order) => (order.id === id ? { ...order, status } : order))
-    );
+  const handleUpdateStatus = async (id: string, status: string) => {
+    try {
+      await updateOrderStatus({
+        id,
+        data: { status },
+      }).unwrap();
+      toast.success(`Order status updated to ${status.toLowerCase()}`);
+    } catch (error: any) {
+      if (error?.data?.message) {
+        toast.error(error.data.message);
+      } else if (error?.message) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to update order status. Please try again.");
+      }
+      console.error("Update order status error:", error);
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
 
   const getStatusBadge = (status: string) => {
@@ -244,21 +210,56 @@ export default function OrdersPage() {
     }
   };
 
-  const getOrderItems = (orderId: string) => {
-    return dummyOrderItems.filter((item) => item.order_id === orderId);
-  };
-
   const clearFilters = () => {
     setSearchQuery("");
-    setStatusFilter(null);
-    setPaymentFilter(null);
+    setStatusFilter("");
+    setPaymentFilter("");
     setDateFrom(new Date(new Date().setDate(new Date().getDate() - 30)));
     setDateTo(new Date());
   };
 
+  // Loading component
+  const LoadingState = () => (
+    <div className="flex items-center justify-center py-8">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <span className="ml-2 text-muted-foreground">Loading orders...</span>
+    </div>
+  );
+
+  // Error component
+  const ErrorState = () => (
+    <div className="text-center py-8">
+      <p className="text-red-500 mb-2">Failed to load orders</p>
+      <Button variant="outline" onClick={() => window.location.reload()}>
+        Try Again
+      </Button>
+    </div>
+  );
+
+  // Empty state component
+  const EmptyState = () => (
+    <div className="text-center py-8 text-muted-foreground">
+      {debouncedSearchQuery || statusFilter || paymentFilter ? (
+        <div>
+          <p className="mb-2">No orders found matching your filters</p>
+          <Button variant="outline" onClick={clearFilters}>
+            Clear Filters
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <p className="mb-2">No orders found</p>
+          <p className="text-sm">
+            Orders will appear here once customers place them
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
   // Order Card Component for mobile view
   const OrderCard = ({ order }: { order: Order }) => (
-    <Card key={order.id}>
+    <Card>
       <CardContent className="p-0">
         <div className="p-4">
           <div className="flex justify-between items-start w-full">
@@ -283,6 +284,7 @@ export default function OrdersPage() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  disabled={isUpdating}
                 >
                   <MoreHorizontal className="h-4 w-4" />
                   <span className="sr-only">Open menu</span>
@@ -295,19 +297,31 @@ export default function OrdersPage() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => handleUpdateStatus(order.id, "OPEN")}
-                  disabled={order.status === "OPEN"}
+                  disabled={
+                    order.status === "OPEN" ||
+                    !canUpdateStatus(order.status, "OPEN") ||
+                    isUpdating
+                  }
                 >
                   Mark as Open
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleUpdateStatus(order.id, "PAID")}
-                  disabled={order.status === "PAID"}
+                  disabled={
+                    order.status === "PAID" ||
+                    !canUpdateStatus(order.status, "PAID") ||
+                    isUpdating
+                  }
                 >
                   Mark as Paid
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleUpdateStatus(order.id, "CANCELLED")}
-                  disabled={order.status === "CANCELLED"}
+                  disabled={
+                    order.status === "CANCELLED" ||
+                    !canUpdateStatus(order.status, "CANCELLED") ||
+                    isUpdating
+                  }
                   className="text-red-600 focus:text-red-600"
                 >
                   Cancel Order
@@ -326,7 +340,7 @@ export default function OrdersPage() {
             <div className="flex items-center justify-between pt-2 border-t border-border/50">
               <span className="text-base font-semibold">Total:</span>
               <span className="text-lg font-bold text-primary">
-                {formatCurrency(order.total_amount)}
+                {formatCurrency(Number(order.total_amount))}
               </span>
             </div>
           </div>
@@ -335,23 +349,48 @@ export default function OrdersPage() {
     </Card>
   );
 
+  // Helper function to check if status transition is allowed
+  const canUpdateStatus = (
+    currentStatus: string,
+    targetStatus: string
+  ): boolean => {
+    // Cannot update status of a cancelled order
+    if (currentStatus === "CANCELLED") {
+      return false;
+    }
+
+    // Cannot reopen a paid order
+    if (currentStatus === "PAID" && targetStatus === "OPEN") {
+      return false;
+    }
+
+    return true;
+  };
+
   return (
     <div className="p-6">
       <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
-        <h1 className="text-2xl font-bold">Orders</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Orders</h1>
+          {!isLoading && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {totalItems} order{totalItems !== 1 ? "s" : ""} found
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Search and Filters */}
       <div className="space-y-4 mb-6">
         {/* Search */}
-        <div className="relative w-full">
+        <div className="relative w-full md:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search by order ID"
+            placeholder="Search orders..."
             className="pl-8"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
           />
         </div>
 
@@ -359,8 +398,10 @@ export default function OrdersPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Status Filter */}
           <Select
-            value={statusFilter || ""}
-            onValueChange={(value) => setStatusFilter(value || null)}
+            value={statusFilter || "all"}
+            onValueChange={(value) =>
+              setStatusFilter(value === "all" ? "" : value)
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="All statuses" />
@@ -375,8 +416,10 @@ export default function OrdersPage() {
 
           {/* Payment Type Filter */}
           <Select
-            value={paymentFilter || ""}
-            onValueChange={(value) => setPaymentFilter(value || null)}
+            value={paymentFilter || "all"}
+            onValueChange={(value) =>
+              setPaymentFilter(value === "all" ? "" : value)
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="All payment types" />
@@ -451,104 +494,125 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Desktop Table View */}
-      <div className="hidden lg:block border rounded-md bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Order Id</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Staff</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Payment</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredOrders.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  No orders found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">
-                    #{order.order_number}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(order.created_at).toLocaleString()}
-                  </TableCell>
-                  <TableCell>{order.user.name}</TableCell>
-                  <TableCell>{formatCurrency(order.total_amount)}</TableCell>
-                  <TableCell>{order.payment_type}</TableCell>
-                  <TableCell>{getStatusBadge(order.status)}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu modal={false}>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleViewOrder(order)}
-                        >
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => handleUpdateStatus(order.id, "OPEN")}
-                          disabled={order.status === "OPEN"}
-                        >
-                          Mark as Open
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleUpdateStatus(order.id, "PAID")}
-                          disabled={order.status === "PAID"}
-                        >
-                          Mark as Paid
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            handleUpdateStatus(order.id, "CANCELLED")
-                          }
-                          disabled={order.status === "CANCELLED"}
-                          className="text-red-600"
-                        >
-                          Cancel Order
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+      {/* Content */}
+      {error ? (
+        <ErrorState />
+      ) : isLoading ? (
+        <LoadingState />
+      ) : orders.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden lg:block border rounded-md bg-white">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order Id</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Staff</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Mobile Card View */}
-      <div className="lg:hidden space-y-2">
-        {filteredOrders.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No orders found
+              </TableHeader>
+              <TableBody>
+                {orders.map((order: Order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">
+                      #{order.order_number}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(order.created_at).toLocaleDateString()} at{" "}
+                      {new Date(order.created_at).toLocaleTimeString()}
+                    </TableCell>
+                    <TableCell>{order.user.name}</TableCell>
+                    <TableCell>
+                      {formatCurrency(Number(order.total_amount))}
+                    </TableCell>
+                    <TableCell>{order.payment_type}</TableCell>
+                    <TableCell>{getStatusBadge(order.status)}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={isUpdating}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleViewOrder(order)}
+                          >
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleUpdateStatus(order.id, "OPEN")}
+                            disabled={
+                              order.status === "OPEN" ||
+                              !canUpdateStatus(order.status, "OPEN") ||
+                              isUpdating
+                            }
+                          >
+                            Mark as Open
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleUpdateStatus(order.id, "PAID")}
+                            disabled={
+                              order.status === "PAID" ||
+                              !canUpdateStatus(order.status, "PAID") ||
+                              isUpdating
+                            }
+                          >
+                            Mark as Paid
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleUpdateStatus(order.id, "CANCELLED")
+                            }
+                            disabled={
+                              order.status === "CANCELLED" ||
+                              !canUpdateStatus(order.status, "CANCELLED") ||
+                              isUpdating
+                            }
+                            className="text-red-600"
+                          >
+                            Cancel Order
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredOrders.map((order) => (
+
+          {/* Mobile Card View */}
+          <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+            {orders.map((order: Order) => (
               <OrderCard key={order.id} order={order} />
             ))}
           </div>
-        )}
-      </div>
 
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <CustomPagination
+              params={{ page: currentPage }}
+              totalPages={totalPages}
+              handlePageChange={handlePageChange}
+            />
+          )}
+        </>
+      )}
+
+      {/* Order Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent
           className="max-w-md"
@@ -557,61 +621,104 @@ export default function OrdersPage() {
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
             <DialogDescription>
-              Order #{selectedOrder?.order_number}
+              {selectedOrderData?.data?.order_number
+                ? `Order #${selectedOrderData.data.order_number}`
+                : "Loading order details..."}
             </DialogDescription>
           </DialogHeader>
 
-          {selectedOrder && (
-            <div className="space-y-2">
+          {isLoadingOrderDetails ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">
+                Loading details...
+              </span>
+            </div>
+          ) : selectedOrderData?.data ? (
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="text-muted-foreground">Date:</div>
-                <div>{new Date(selectedOrder.created_at).toLocaleString()}</div>
+                <div>
+                  {new Date(selectedOrderData.data.created_at).toLocaleString()}
+                </div>
 
                 <div className="text-muted-foreground">Staff:</div>
-                <div>{selectedOrder.user.name}</div>
+                <div>{selectedOrderData.data.user.name}</div>
 
                 <div className="text-muted-foreground">Payment:</div>
-                <div>{selectedOrder.payment_type}</div>
+                <div>{selectedOrderData.data.payment_type}</div>
 
                 <div className="text-muted-foreground">Status:</div>
-                <div>{getStatusBadge(selectedOrder.status)}</div>
+                <div>{getStatusBadge(selectedOrderData.data.status)}</div>
               </div>
 
-              <div className="border-t pt-4">
-                <h3 className="font-medium mb-2">Order Items</h3>
-                <div className="space-y-1">
-                  {getOrderItems(selectedOrder.id).map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span>
-                        {item.quantity} x {item.name}
-                      </span>
-                      <span>{formatCurrency(item.price * item.quantity)}</span>
+              {selectedOrderData.data.order_items &&
+                selectedOrderData.data.order_items.length > 0 && (
+                  <div className="border-t pt-4">
+                    <h3 className="font-medium mb-2">Order Items</h3>
+                    <div className="space-y-2">
+                      {selectedOrderData.data.order_items.map(
+                        (item: OrderItem) => (
+                          <div
+                            key={item.id}
+                            className="flex justify-between text-sm"
+                          >
+                            <span>
+                              {item.quantity} x {item.product.name}
+                            </span>
+                            <span>
+                              {formatCurrency(
+                                Number(item.price) * item.quantity
+                              )}
+                            </span>
+                          </div>
+                        )
+                      )}
                     </div>
-                  ))}
+                  </div>
+                )}
+
+              {/* Add note if it exists */}
+              {selectedOrderData.data.note && (
+                <div className="border-t pt-4">
+                  <div className="text-muted-foreground text-sm mb-1">
+                    Note:
+                  </div>
+                  <div className="text-sm">{selectedOrderData.data.note}</div>
                 </div>
-              </div>
+              )}
 
               <div className="border-t pt-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal:</span>
                   <span>
-                    {formatCurrency(selectedOrder.total_amount / 1.1)}
+                    {formatCurrency(
+                      Number(selectedOrderData.data.total_amount) / 1.1
+                    )}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tax (10%):</span>
                   <span>
                     {formatCurrency(
-                      selectedOrder.total_amount -
-                        selectedOrder.total_amount / 1.1
+                      Number(selectedOrderData.data.total_amount) -
+                        Number(selectedOrderData.data.total_amount) / 1.1
                     )}
                   </span>
                 </div>
                 <div className="flex justify-between font-medium mt-2">
                   <span>Total:</span>
-                  <span>{formatCurrency(selectedOrder.total_amount)}</span>
+                  <span>
+                    {formatCurrency(
+                      Number(selectedOrderData.data.total_amount)
+                    )}
+                  </span>
                 </div>
               </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              Failed to load order details
             </div>
           )}
         </DialogContent>
