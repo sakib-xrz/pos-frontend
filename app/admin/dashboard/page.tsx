@@ -72,17 +72,32 @@ export default function DashboardPage() {
     data: summaryData,
     isLoading: summaryLoading,
     error: summaryError,
-  } = useGetSummaryQuery({});
+  } = useGetSummaryQuery(
+    {},
+    {
+      refetchOnMountOrArgChange: true,
+    }
+  );
   const {
     data: weeklyRevenueData,
     isLoading: weeklyLoading,
     error: weeklyError,
-  } = useGetWeeklyRevenueQuery({});
+  } = useGetWeeklyRevenueQuery(
+    {},
+    {
+      refetchOnMountOrArgChange: true,
+    }
+  );
   const {
     data: categorySalesData,
     isLoading: categoryLoading,
     error: categoryError,
-  } = useGetCategorySalesQuery({});
+  } = useGetCategorySalesQuery(
+    {},
+    {
+      refetchOnMountOrArgChange: true,
+    }
+  );
 
   // Transform summary data to match expected format
   const transformedSummaryData = useMemo(() => {
