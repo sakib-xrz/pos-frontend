@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,62 +17,144 @@ import {
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import ImgUpload from "@/components/shared/img-upload";
+import {
+  useGetSettingsQuery,
+  useUpdateSettingsMutation,
+} from "@/redux/features/settings/settingsApi";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+import Image from "next/image";
 
 // Validation schema
 const settingsSchema = Yup.object({
-  business_name: Yup.string().required("Business name is required"),
+  display_name: Yup.string().required("Business name is required"),
   address: Yup.string().required("Address is required"),
   phone_number: Yup.string().required("Phone number is required"),
   email: Yup.string()
     .email("Invalid email address")
     .required("Email is required"),
-  logo_url: Yup.string(),
   receipt_header_text: Yup.string(),
   receipt_footer_text: Yup.string(),
   show_logo_on_receipt: Yup.boolean(),
 });
 
-// Dummy data
-const dummySettings = {
-  business_name: "Demo Business",
-  address: "123 Main Street, City, State, 12345",
-  phone_number: "(123) 456-7890",
-  email: "info@demobusiness.com",
-  logo_url: null,
-  receipt_header_text: "Thank you for your business!",
-  receipt_footer_text: "Please visit us again!",
-  show_logo_on_receipt: true,
-};
-
-type Settings = {
-  business_name: string;
-  address: string;
-  phone_number: string;
-  email: string;
-  logo_url: string | null;
-  receipt_header_text: string;
-  receipt_footer_text: string;
-  show_logo_on_receipt: boolean;
-};
-
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<Settings>(dummySettings);
+  const {
+    data: settingsData,
+    isLoading: isLoadingSettings,
+    error: settingsError,
+  } = useGetSettingsQuery({});
+
+  const [updateSettings, { isLoading: isUpdating }] =
+    useUpdateSettingsMutation();
+
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   const formik = useFormik({
-    initialValues: settings,
+    initialValues: {
+      display_name: "",
+      address: "",
+      phone_number: "",
+      email: "",
+      logo_url: null as string | null,
+      receipt_header_text: "",
+      receipt_footer_text: "",
+      show_logo_on_receipt: true,
+    },
     validationSchema: settingsSchema,
-    onSubmit: (values) => {
-      // Simulate API call
-      setTimeout(() => {
-        setSettings(values);
-        // toast({
-        //   title: "Settings updated",
-        //   description:
-        //     "Your restaurant settings have been updated successfully.",
-        // });
-      }, 1000);
+    enableReinitialize: true,
+    onSubmit: async (values) => {
+      try {
+        const formData = new FormData();
+
+        // Append all form fields
+        formData.append("display_name", values.display_name);
+        formData.append("address", values.address);
+        formData.append("phone_number", values.phone_number);
+        formData.append("email", values.email);
+        formData.append("receipt_header_text", values.receipt_header_text);
+        formData.append("receipt_footer_text", values.receipt_footer_text);
+        formData.append(
+          "show_logo_on_receipt",
+          values.show_logo_on_receipt.toString()
+        );
+
+        // Only append logo file if a new file is selected
+        if (logoFile) {
+          formData.append("logo", logoFile);
+        }
+
+        await updateSettings(formData).unwrap();
+        window.location.reload();
+        toast.success("Settings updated successfully");
+        setLogoFile(null); // Reset logo file after successful update
+      } catch (error: any) {
+        if (error?.data?.message) {
+          toast.error(error.data.message);
+        } else if (error?.message) {
+          toast.error(error.message);
+        } else {
+          toast.error("Failed to update settings. Please try again.");
+        }
+        console.error("Update settings error:", error);
+      }
     },
   });
+
+  // Update form values when settings data is loaded
+  useEffect(() => {
+    if (settingsData?.data) {
+      const settings = settingsData.data;
+      formik.setValues({
+        display_name: settings.display_name || "",
+        address: settings.address || "",
+        phone_number: settings.phone_number || "",
+        email: settings.email || "",
+        logo_url: settings.logo_url || null,
+        receipt_header_text: settings.receipt_header_text || "",
+        receipt_footer_text: settings.receipt_footer_text || "",
+        show_logo_on_receipt: settings.show_logo_on_receipt ?? true,
+      });
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsData]);
+
+  const handleLogoChange = (file: File | null) => {
+    setLogoFile(file);
+  };
+
+  const handleLogoRemove = () => {
+    setLogoFile(null);
+  };
+
+  // Loading component
+  if (isLoadingSettings) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">
+            Loading settings...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Error component
+  if (settingsError) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="text-center py-8">
+          <p className="text-red-500 mb-2">Failed to load settings</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -100,19 +182,19 @@ export default function SettingsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label htmlFor="business_name">Business Name</Label>
+                  <Label htmlFor="display_name">Business Name</Label>
                   <Input
-                    id="business_name"
-                    name="business_name"
+                    id="display_name"
+                    name="display_name"
                     placeholder="Enter business name"
-                    value={formik.values.business_name}
+                    value={formik.values.display_name}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                   />
-                  {formik.touched.business_name &&
-                    formik.errors.business_name && (
+                  {formik.touched.display_name &&
+                    formik.errors.display_name && (
                       <p className="text-sm text-red-500">
-                        {formik.errors.business_name}
+                        {formik.errors.display_name}
                       </p>
                     )}
                 </div>
@@ -175,18 +257,29 @@ export default function SettingsPage() {
             {/* Logo Section */}
             <div className="space-y-1">
               <h3 className="text-lg font-medium">Business Logo</h3>
+              {formik.values.logo_url && !logoFile && (
+                <div>
+                  <Label>Current Logo</Label>
+                  <div className="relative w-32 h-32 rounded-lg overflow-hidden border mb-2">
+                    <Image
+                      src={formik.values.logo_url}
+                      alt="Current logo"
+                      className="w-full h-full object-cover"
+                      width={100}
+                      height={100}
+                      quality={100}
+                    />
+                  </div>
+                </div>
+              )}
               <ImgUpload
-                value={
-                  formik.values.logo_url
-                    ? new File([formik.values.logo_url], "logo")
-                    : null
+                value={logoFile}
+                onChange={handleLogoChange}
+                onRemove={handleLogoRemove}
+                label={
+                  formik.values.logo_url ? "New Business Logo" : "Business Logo"
                 }
-                onChange={(value: File | null) =>
-                  formik.setFieldValue("logo_url", value)
-                }
-                onRemove={() => formik.setFieldValue("logo_url", null)}
-                label="Business Logo"
-                placeholder="Upload your business logo"
+                placeholder="Upload new logo"
               />
             </div>
 
@@ -255,10 +348,17 @@ export default function SettingsPage() {
           <CardFooter>
             <Button
               type="submit"
-              disabled={formik.isSubmitting}
+              disabled={isUpdating}
               className="w-full md:w-auto"
             >
-              {formik.isSubmitting ? "Saving..." : "Save Settings"}
+              {isUpdating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save Settings"
+              )}
             </Button>
           </CardFooter>
         </form>

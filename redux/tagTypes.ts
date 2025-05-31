@@ -6,6 +6,7 @@ export const tagTypes = {
   setting: "setting",
   shop: "shop",
   stats: "stats",
+  settings: "settings",
 };
 
 export const tagTypesList = [
@@ -16,4 +17,5 @@ export const tagTypesList = [
   tagTypes.setting,
   tagTypes.shop,
   tagTypes.stats,
+  tagTypes.settings,
 ];
