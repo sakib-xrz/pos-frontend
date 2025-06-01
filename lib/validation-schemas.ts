@@ -23,23 +23,10 @@ export const categorySchema = Yup.object({
 });
 
 export const orderSchema = Yup.object({
-  table_number: Yup.string().nullable(),
   note: Yup.string().nullable(),
   payment_type: Yup.string()
     .oneOf(["CASH", "CARD"])
     .required("Payment type is required"),
-});
-
-export const couponSchema = Yup.object({
-  code: Yup.string().required("Coupon code is required"),
-  type: Yup.string()
-    .oneOf(["PERCENTAGE", "FIXED"])
-    .required("Coupon type is required"),
-  value: Yup.number()
-    .positive("Value must be positive")
-    .required("Value is required"),
-  is_active: Yup.boolean().default(true),
-  expires_at: Yup.date().nullable(),
 });
 
 export const userSchema = Yup.object({

@@ -3,6 +3,14 @@ import { tagTypes } from "@/redux/tagTypes";
 
 export const orderApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    createOrder: builder.mutation({
+      query: (data) => ({
+        url: "/orders",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: [tagTypes.order],
+    }),
     getOrders: builder.query({
       query: (params) => ({
         url: "/orders",
@@ -30,6 +38,7 @@ export const orderApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useCreateOrderMutation,
   useGetOrdersQuery,
   useGetOrderQuery,
   useUpdateOrderStatusMutation,
