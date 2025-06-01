@@ -21,7 +21,7 @@ export function CategoryFilter({
 }: CategoryFilterProps) {
   return (
     <ScrollArea className="w-full whitespace-nowrap">
-      <div className="flex space-x-2 p-2">
+      <div className="flex space-x-2 p-4">
         <Button
           variant={selectedCategory === null ? "default" : "outline"}
           size="sm"

@@ -55,7 +55,7 @@ export default function StaffLayout({
           <Button
             variant="outline"
             size="icon"
-            className="lg:hidden fixed top-3 right-4 z-40"
+            className="fixed top-3 right-4 z-40"
           >
             <Menu className="h-4 w-4" />
           </Button>
@@ -115,7 +115,7 @@ export default function StaffLayout({
       </Sheet>
 
       {/* Desktop Navigation */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r">
+      {/* <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r">
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex items-center h-16 flex-shrink-0 px-4 border-b">
             <h1 className="text-xl font-bold">Staff Panel</h1>
@@ -162,10 +162,10 @@ export default function StaffLayout({
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Main Content */}
-      <div className="lg:pl-64 flex flex-col flex-1 max-lg:py-8">
+      <div className="flex flex-col flex-1 max-lg:py-8">
         <main className="flex-1">{children}</main>
       </div>
     </div>

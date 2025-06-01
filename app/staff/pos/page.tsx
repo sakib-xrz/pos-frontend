@@ -7,7 +7,7 @@ import { ProductCard } from "./_components/product-card";
 import { CategoryFilter } from "./_components/category-filter";
 import { OrderItem } from "./_components/order-item";
 import { Search, ShoppingCart, Loader2 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, sanitizeParams } from "@/lib/utils";
 import { useFormik } from "formik";
 import { orderSchema } from "@/lib/validation-schemas";
 import {
@@ -28,6 +28,7 @@ import { useGetProductsQuery } from "@/redux/features/product/productApi";
 import { useCreateOrderMutation } from "@/redux/features/order/orderApi";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface OrderItemType {
   id: string;
@@ -44,6 +45,9 @@ export default function POSPage() {
   const [orderItems, setOrderItems] = useState<OrderItemType[]>([]);
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
 
+  // Debounce search query to avoid too many API calls
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
   // API hooks
   const {
     data: categoriesData,
@@ -51,11 +55,20 @@ export default function POSPage() {
     error: categoriesError,
   } = useGetCategoriesQuery({});
 
+  // Updated products query with search and filter parameters
   const {
     data: productsData,
     isLoading: productsLoading,
     error: productsError,
-  } = useGetProductsQuery({});
+  } = useGetProductsQuery(
+    sanitizeParams({
+      search: debouncedSearchQuery || undefined,
+      category_id: selectedCategory || undefined,
+      is_available: true,
+      page: 1,
+      limit: 100,
+    })
+  );
 
   const [createOrder, { isLoading: isCreatingOrder }] =
     useCreateOrderMutation();
@@ -64,15 +77,8 @@ export default function POSPage() {
   const categories = categoriesData?.data || [];
   const products = productsData?.data || [];
 
-  const filteredProducts = products.filter((product: any) => {
-    const matchesCategory = selectedCategory
-      ? product.category_id === selectedCategory
-      : true;
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch && product.is_available;
-  });
+  // Remove client-side filtering since it's now handled by the API
+  const filteredProducts = products;
 
   const handleAddProduct = (product: {
     id: string;
