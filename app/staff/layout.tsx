@@ -165,7 +165,7 @@ export default function StaffLayout({
       </div> */}
 
       {/* Main Content */}
-      <div className="flex flex-col flex-1 max-lg:py-8">
+      <div className="flex flex-col flex-1">
         <main className="flex-1">{children}</main>
       </div>
     </div>

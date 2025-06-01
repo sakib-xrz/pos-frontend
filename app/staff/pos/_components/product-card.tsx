@@ -39,7 +39,7 @@ export function ProductCard({
           />
         </div>
         <div className="text-sm font-medium line-clamp-1">{name}</div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           {formatCurrency(price)}
         </div>
       </CardContent>
