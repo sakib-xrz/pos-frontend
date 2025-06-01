@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProductCard } from "./_components/product-card";
@@ -45,6 +45,98 @@ interface OrderItemType {
   quantity: number;
 }
 
+interface MobileCartSheetProps {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  orderItems: OrderItemType[];
+  onUpdateQuantity: (id: string, quantity: number) => void;
+  onRemoveItem: (id: string) => void;
+  onClearOrder: () => void;
+  onProceedToCheckout: () => void;
+}
+
+const MobileCartSheetComponent: React.FC<MobileCartSheetProps> = ({
+  isOpen,
+  onOpenChange,
+  orderItems,
+  onUpdateQuantity,
+  onRemoveItem,
+  onClearOrder,
+  onProceedToCheckout,
+}) => {
+  const totalItems = orderItems.reduce(
+    (total, item) => total + item.quantity,
+    0
+  );
+  const totalAmount = orderItems.reduce(
+    (total, item) => total + item.price * item.quantity,
+    0
+  );
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="h-[80vh] flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="flex items-center">
+            <ShoppingCart className="mr-2 h-5 w-5" />
+            Current Order ({totalItems} items)
+          </SheetTitle>
+          <SheetDescription className="text-left">
+            Review your order and proceed to checkout
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-auto py-4">
+          {orderItems.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No items in order
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {orderItems.map((item) => (
+                <OrderItem
+                  key={item.id}
+                  id={item.id}
+                  name={item.name}
+                  price={item.price}
+                  quantity={item.quantity}
+                  onUpdateQuantity={onUpdateQuantity}
+                  onRemove={onRemoveItem}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <div className="flex justify-between py-2 text-lg font-bold">
+            <div>Total</div>
+            <div>{formatCurrency(totalAmount)}</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              onClick={onClearOrder}
+              disabled={orderItems.length === 0}
+              className="h-12"
+            >
+              Clear Order
+            </Button>
+            <Button
+              onClick={onProceedToCheckout}
+              disabled={orderItems.length === 0}
+              className="h-12"
+            >
+              Checkout
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
 export default function POSPage() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -64,6 +156,13 @@ export default function POSPage() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Automatically close mobile cart sheet if order items are empty
+  useEffect(() => {
+    if (isMobile && orderItems.length === 0 && mobileCartOpen) {
+      setMobileCartOpen(false);
+    }
+  }, [orderItems, isMobile, mobileCartOpen]);
 
   // Debounce search query to avoid too many API calls
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
@@ -136,20 +235,31 @@ export default function POSPage() {
     }
   };
 
-  const handleUpdateQuantity = (id: string, quantity: number) => {
-    if (quantity <= 0) {
-      handleRemoveItem(id);
-      return;
-    }
+  const handleRemoveItem = useCallback((id: string) => {
+    setOrderItems((prevItems) => prevItems.filter((item) => item.id !== id));
+  }, []);
 
-    setOrderItems(
-      orderItems.map((item) => (item.id === id ? { ...item, quantity } : item))
-    );
-  };
+  const handleUpdateQuantity = useCallback(
+    (id: string, quantity: number) => {
+      if (quantity <= 0) {
+        handleRemoveItem(id);
+        return;
+      }
+      setOrderItems((prevItems) =>
+        prevItems.map((item) => (item.id === id ? { ...item, quantity } : item))
+      );
+    },
+    [handleRemoveItem]
+  );
 
-  const handleRemoveItem = (id: string) => {
-    setOrderItems(orderItems.filter((item) => item.id !== id));
-  };
+  const handleClearOrder = useCallback(() => {
+    setOrderItems([]);
+  }, []);
+
+  const handleProceedToMobileCheckout = useCallback(() => {
+    setMobileCartOpen(false);
+    setCheckoutDialogOpen(true);
+  }, [setCheckoutDialogOpen, setMobileCartOpen]);
 
   const calculateTotal = () => {
     return orderItems.reduce(
@@ -225,73 +335,6 @@ export default function POSPage() {
       </div>
     );
   }
-
-  // Mobile Cart Sheet Component
-  const MobileCartSheet = () => (
-    <Sheet open={mobileCartOpen} onOpenChange={setMobileCartOpen}>
-      <SheetContent side="bottom" className="h-[80vh] flex flex-col">
-        <SheetHeader>
-          <SheetTitle className="flex items-center">
-            <ShoppingCart className="mr-2 h-5 w-5" />
-            Current Order ({getTotalItems()} items)
-          </SheetTitle>
-          <SheetDescription>
-            Review your order and proceed to checkout
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="flex-1 overflow-auto py-4">
-          {orderItems.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No items in order
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {orderItems.map((item) => (
-                <OrderItem
-                  key={item.id}
-                  id={item.id}
-                  name={item.name}
-                  price={item.price}
-                  quantity={item.quantity}
-                  onUpdateQuantity={handleUpdateQuantity}
-                  onRemove={handleRemoveItem}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="border-t pt-4 space-y-3">
-          <div className="flex justify-between py-2 text-lg font-bold">
-            <div>Total</div>
-            <div>{formatCurrency(calculateTotal())}</div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setOrderItems([])}
-              disabled={orderItems.length === 0}
-              className="h-12"
-            >
-              Clear Order
-            </Button>
-            <Button
-              onClick={() => {
-                setMobileCartOpen(false);
-                setCheckoutDialogOpen(true);
-              }}
-              disabled={orderItems.length === 0}
-              className="h-12"
-            >
-              Checkout
-            </Button>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
 
   // Desktop Order Sidebar
   const DesktopOrderSidebar = () => (
@@ -504,7 +547,17 @@ export default function POSPage() {
       </div>
 
       {/* Mobile Cart Sheet */}
-      {isMobile && <MobileCartSheet />}
+      {isMobile && (
+        <MobileCartSheetComponent
+          isOpen={mobileCartOpen}
+          onOpenChange={setMobileCartOpen}
+          orderItems={orderItems}
+          onUpdateQuantity={handleUpdateQuantity}
+          onRemoveItem={handleRemoveItem}
+          onClearOrder={handleClearOrder}
+          onProceedToCheckout={handleProceedToMobileCheckout}
+        />
+      )}
 
       {/* Mobile Floating Cart Button */}
       {isMobile && orderItems.length > 0 && (
