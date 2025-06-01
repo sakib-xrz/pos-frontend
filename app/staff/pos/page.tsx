@@ -288,7 +288,7 @@ export default function POSPage() {
           order_items: orderItems.map((item) => ({
             product_id: item.product_id,
             quantity: item.quantity,
-            price: item.price,
+            price: Number(item.price),
           })),
         };
 
