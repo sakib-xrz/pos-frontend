@@ -175,7 +175,7 @@ export default function SuperAdminLayout({
       </div>
 
       {/* Main Content */}
-      <div className="lg:pl-64 flex flex-col flex-1">
+      <div className="lg:pl-64 flex flex-col flex-1 max-lg:py-8">
         <main className="flex-1">{children}</main>
       </div>
     </div>
