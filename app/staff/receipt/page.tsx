@@ -27,7 +27,15 @@ export default function ReceiptPage() {
   const settings = settingsResponse?.data;
 
   const handlePrint = () => {
+    // Hide browser UI elements before printing
+    const originalTitle = document.title;
+    document.title = "";
+
+    // Print with clean settings
     window.print();
+
+    // Restore title after printing
+    document.title = originalTitle;
   };
 
   if (isOrderLoading) {
@@ -196,28 +204,46 @@ export default function ReceiptPage() {
             </div>
             <div className="text-[9px] text-gray-500">PLEASE COME AGAIN</div>
           </div>
+
+          {/* Bottom spacing for tear-off */}
+          <div className="h-4"></div>
         </div>
       </div>
 
       {/* Print Button - Hidden on print */}
       <div className="mt-4 px-4 print:hidden flex justify-center">
-        <Button onClick={handlePrint} className="w-full max-w-[320px]">
-          <Printer className="mr-2 h-4 w-4" />
+        <Button onClick={handlePrint} className="w-full max-w-[320px] mx-auto">
+          <Printer className="h-4 w-4" />
           Print Receipt
         </Button>
       </div>
 
       <style jsx>{`
         @media print {
+          @page {
+            margin: 0;
+            size: 80mm auto;
+          }
+
           body {
             margin: 0;
             padding: 0;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
           }
+
           .receipt-paper {
             width: 80mm;
             margin: 0;
             padding: 5mm;
             font-size: 10px;
+            page-break-inside: avoid;
+          }
+
+          /* Hide browser print headers and footers */
+          html {
+            margin: 0 !important;
+            padding: 0 !important;
           }
         }
 
