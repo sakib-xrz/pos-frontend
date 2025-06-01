@@ -8,8 +8,38 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Store, Users, TrendingUp } from "lucide-react";
+import {
+  useGetSuperAdminStatsQuery,
+  useGetRecentShopRegistrationsQuery,
+} from "@/redux/features/stats/statsApi";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SuperAdminDashboardPage() {
+  const {
+    data: statsData,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useGetSuperAdminStatsQuery(
+    {},
+    {
+      refetchOnMountOrArgChange: true,
+    }
+  );
+
+  const {
+    data: recentShopsData,
+    isLoading: recentShopsLoading,
+    error: recentShopsError,
+  } = useGetRecentShopRegistrationsQuery(
+    { limit: 2 },
+    {
+      refetchOnMountOrArgChange: true,
+    }
+  );
+
+  const stats = statsData?.data;
+  const recentShops = recentShopsData?.data || [];
+
   return (
     <div className="p-6">
       <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between mb-6">
@@ -29,8 +59,28 @@ export default function SuperAdminDashboardPage() {
             <Store className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
-            <p className="text-xs text-muted-foreground">+2 from last month</p>
+            {statsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ) : statsError ? (
+              <div className="text-destructive">Error loading data</div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">
+                  {stats?.total_shops || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.shops_change
+                    ? stats.shops_change > 0
+                      ? `+${stats.shops_change}`
+                      : stats.shops_change
+                    : "0"}{" "}
+                  from last month
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -40,8 +90,23 @@ export default function SuperAdminDashboardPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">22</div>
-            <p className="text-xs text-muted-foreground">91.7% active rate</p>
+            {statsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ) : statsError ? (
+              <div className="text-destructive">Error loading data</div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">
+                  {stats?.active_shops || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.active_rate || 0}% active rate
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -51,8 +116,28 @@ export default function SuperAdminDashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">156</div>
-            <p className="text-xs text-muted-foreground">+12 from last month</p>
+            {statsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ) : statsError ? (
+              <div className="text-destructive">Error loading data</div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">
+                  {stats?.total_users || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.users_change
+                    ? stats.users_change > 0
+                      ? `+${stats.users_change}`
+                      : stats.users_change
+                    : "0"}{" "}
+                  from last month
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -65,37 +150,41 @@ export default function SuperAdminDashboardPage() {
             <CardDescription>Latest shops added to the system</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    Pizza Palace
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Downtown Branch
-                  </p>
-                </div>
-                <div className="ml-auto font-medium">2 days ago</div>
+            {recentShopsLoading ? (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex items-center">
+                    <div className="space-y-1 flex-1">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-4 w-16 ml-auto" />
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    Burger King
-                  </p>
-                  <p className="text-sm text-muted-foreground">Mall Branch</p>
-                </div>
-                <div className="ml-auto font-medium">5 days ago</div>
+            ) : recentShopsError ? (
+              <div className="text-destructive">Error loading recent shops</div>
+            ) : recentShops.length > 0 ? (
+              <div className="space-y-2">
+                {recentShops.map((shop: any) => (
+                  <div key={shop.id} className="flex items-center">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {shop.name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {shop.branch_name || "Main Branch"}
+                      </p>
+                    </div>
+                    <div className="ml-auto font-medium">{shop.time_ago}</div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    Coffee Corner
-                  </p>
-                  <p className="text-sm text-muted-foreground">Main Street</p>
-                </div>
-                <div className="ml-auto font-medium">1 week ago</div>
+            ) : (
+              <div className="text-muted-foreground text-sm">
+                No recent registrations
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -105,20 +194,41 @@ export default function SuperAdminDashboardPage() {
             <CardDescription>Overview of subscription plans</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">One Month</span>
-                <span className="text-sm text-muted-foreground">8 shops</span>
+            {statsLoading ? (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Six Months</span>
-                <span className="text-sm text-muted-foreground">10 shops</span>
+            ) : statsError ? (
+              <div className="text-destructive">
+                Error loading subscription data
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">One Year</span>
-                <span className="text-sm text-muted-foreground">6 shops</span>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">One Month</span>
+                  <span className="text-sm text-muted-foreground">
+                    {stats?.subscription_breakdown?.ONE_MONTH || 0} shops
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Six Months</span>
+                  <span className="text-sm text-muted-foreground">
+                    {stats?.subscription_breakdown?.SIX_MONTHS || 0} shops
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">One Year</span>
+                  <span className="text-sm text-muted-foreground">
+                    {stats?.subscription_breakdown?.ONE_YEAR || 0} shops
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

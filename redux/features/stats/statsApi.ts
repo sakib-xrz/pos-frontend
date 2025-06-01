@@ -24,6 +24,21 @@ export const statsApi = baseApi.injectEndpoints({
       }),
       providesTags: [tagTypes.stats],
     }),
+    getSuperAdminStats: builder.query({
+      query: () => ({
+        url: "/stats/super-admin",
+        method: "GET",
+      }),
+      providesTags: [tagTypes.stats],
+    }),
+    getRecentShopRegistrations: builder.query({
+      query: ({ limit }: { limit: number }) => ({
+        url: "/stats/recent-shops",
+        method: "GET",
+        params: { limit },
+      }),
+      providesTags: [tagTypes.stats],
+    }),
   }),
 });
 
@@ -31,4 +46,6 @@ export const {
   useGetSummaryQuery,
   useGetWeeklyRevenueQuery,
   useGetCategorySalesQuery,
+  useGetSuperAdminStatsQuery,
+  useGetRecentShopRegistrationsQuery,
 } = statsApi;
