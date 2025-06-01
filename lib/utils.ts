@@ -48,9 +48,14 @@ export function sanitizeParams<T extends Record<string, unknown>>(
   return sanitizedObj;
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "BDT",
-  }).format(amount);
+export function formatCurrency(amount: number, showCurrency = true): string {
+  // if showCurrency is true, return the amount with currency symbol else only return the amount
+
+  if (showCurrency) {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "BDT",
+    }).format(amount);
+  }
+  return amount.toString();
 }

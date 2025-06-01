@@ -1,14 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { Printer, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -62,15 +56,14 @@ export default function ReceiptPage() {
   const subtotal =
     order.order_items?.reduce(
       (total: number, item: any) =>
-        total + parseFloat(item.price) * item.quantity,
+        total + Number.parseFloat(item.price) * item.quantity,
       0
     ) || 0;
-  const tax = subtotal * 0.1;
-  const total = subtotal + tax;
 
   return (
-    <div className="container max-w-md mx-auto py-8 px-4">
-      <div className="mb-4 print:hidden">
+    <div className="min-h-screen bg-gray-100 py-4 print:bg-white print:py-0">
+      {/* Navigation - Hidden on print */}
+      <div className="mb-4 px-4 print:hidden">
         <Link href="/staff/pos">
           <Button variant="outline" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -79,101 +72,181 @@ export default function ReceiptPage() {
         </Link>
       </div>
 
-      <Card className="border-2">
-        <CardHeader className="text-center border-b">
-          <CardTitle>{settings?.receipt_header_text || "Receipt"}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="text-center mb-6">
+      {/* Receipt Container */}
+      <div className="mx-auto max-w-[320px] bg-white shadow-lg print:shadow-none print:max-w-none">
+        {/* Receipt Paper */}
+        <div className="receipt-paper font-mono text-xs leading-tight p-4 print:p-2">
+          {/* Header */}
+          <div className="text-center mb-3">
             {settings?.show_logo_on_receipt && settings?.logo_url && (
-              <img
-                src={settings.logo_url}
-                alt={settings.display_name || "Restaurant Logo"}
-                className="h-16 w-auto mx-auto mb-2"
-              />
+              <div className="mb-2">
+                <img
+                  src={settings.logo_url || "/placeholder.svg"}
+                  alt={settings.display_name || "Restaurant Logo"}
+                  className="h-12 w-auto mx-auto"
+                />
+              </div>
             )}
-            <h2 className="text-xl font-bold">
-              {settings?.display_name || "Restaurant Name"}
-            </h2>
-            <p className="text-sm text-muted-foreground">
+            <div className="font-bold text-sm uppercase tracking-wide">
+              {settings?.display_name || "RESTAURANT NAME"}
+            </div>
+            <div className="text-[10px] mt-1 leading-tight">
               {settings?.address || "123 Main Street, City"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Tel: {settings?.phone_number || "(123) 456-7890"}
-            </p>
+            </div>
+            <div className="text-[10px]">
+              TEL: {settings?.phone_number || "(123) 456-7890"}
+            </div>
           </div>
 
-          <div className="mb-6 text-sm">
+          {/* Dashed line separator */}
+          <div className="border-t border-dashed border-gray-400 my-2"></div>
+
+          {/* Order Info */}
+          <div className="mb-3 text-[10px] space-y-1">
             <div className="flex justify-between">
-              <span>Order ID:</span>
-              <span>#{order.order_number}</span>
+              <span>ORDER#:</span>
+              <span>{order.order_number}</span>
             </div>
             <div className="flex justify-between">
-              <span>Date:</span>
-              <span>{new Date(order.created_at).toLocaleString()}</span>
+              <span>DATE:</span>
+              <span>{new Date(order.created_at).toLocaleDateString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>TIME:</span>
+              <span>{new Date(order.created_at).toLocaleTimeString()}</span>
             </div>
             {order.table_number && (
               <div className="flex justify-between">
-                <span>Table:</span>
+                <span>TABLE:</span>
                 <span>{order.table_number}</span>
               </div>
             )}
             <div className="flex justify-between">
-              <span>Payment:</span>
-              <span>{order.payment_type}</span>
+              <span>CASHIER:</span>
+              <span>{order.user?.name || "STAFF"}</span>
             </div>
           </div>
 
-          <div className="border-t border-b py-4 mb-4">
-            <div className="font-medium mb-2">Items</div>
+          {/* Dashed line separator */}
+          <div className="border-t border-dashed border-gray-400 my-2"></div>
+
+          {/* Items Table */}
+          <div className="mb-3">
+            {/* Table Header */}
+            <div className="text-[9px] font-bold uppercase border-b border-dashed border-gray-400 pb-1 mb-2">
+              <div className="grid grid-cols-12 gap-1">
+                <div className="col-span-5">ITEM</div>
+                <div className="col-span-2 text-center">QTY</div>
+                <div className="col-span-2 text-right">UNIT</div>
+                <div className="col-span-3 text-right">TOTAL</div>
+              </div>
+            </div>
+
+            {/* Table Rows */}
             {order.order_items?.map((item: any) => (
-              <div key={item.id} className="flex justify-between text-sm py-1">
-                <span>
-                  {item.quantity} x {item.product?.name || "Unknown Item"}
-                </span>
-                <span>
-                  {formatCurrency(parseFloat(item.price) * item.quantity)}
-                </span>
+              <div key={item.id} className="mb-1">
+                <div className="grid grid-cols-12 gap-1 text-[10px] items-center">
+                  <div className="col-span-5 uppercase leading-tight">
+                    {item.product?.name || "UNKNOWN ITEM"}
+                  </div>
+                  <div className="col-span-2 text-center">{item.quantity}</div>
+                  <div className="col-span-2 text-right">
+                    {formatCurrency(Number.parseFloat(item.price), false)}
+                  </div>
+                  <div className="col-span-3 text-right font-medium">
+                    {formatCurrency(
+                      Number.parseFloat(item.price) * item.quantity,
+                      false
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
 
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
+          {/* Totals */}
+          <div className="mb-3 text-[11px] space-y-1">
+            <div className="border-t border-dashed border-gray-400 my-1"></div>
+            <div className="flex justify-between font-bold text-sm">
+              <span>TOTAL:</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Tax (10%):</span>
-              <span>{formatCurrency(tax)}</span>
-            </div>
-            <div className="flex justify-between font-bold text-base">
-              <span>Total:</span>
-              <span>{formatCurrency(total)}</span>
+            <div className="flex justify-between text-[10px] mt-2">
+              <span>PAYMENT:</span>
+              <span>{order.payment_type}</span>
             </div>
           </div>
 
+          {/* Note */}
           {order.note && (
-            <div className="mt-4 text-sm">
-              <div className="font-medium">Note:</div>
-              <div className="text-muted-foreground">{order.note}</div>
-            </div>
+            <>
+              <div className="border-t border-dashed border-gray-400 my-2"></div>
+              <div className="mb-3 text-[10px]">
+                <div className="font-medium">NOTE:</div>
+                <div className="mt-1">{order.note}</div>
+              </div>
+            </>
           )}
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>
-              {settings?.receipt_footer_text ||
-                "Thank you for your order! Please come again"}
-            </p>
+          {/* Footer */}
+          <div className="border-t border-dashed border-gray-400 my-2"></div>
+          <div className="text-center text-[10px] leading-tight">
+            <div className="mb-1">
+              {settings?.receipt_footer_text || "THANK YOU FOR YOUR BUSINESS!"}
+            </div>
+            <div className="text-[9px] text-gray-500">PLEASE COME AGAIN</div>
           </div>
-        </CardContent>
-        <CardFooter className="print:hidden">
-          <Button onClick={handlePrint} className="w-full">
-            <Printer className="mr-2 h-4 w-4" />
-            Print Receipt
-          </Button>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
+
+      {/* Print Button - Hidden on print */}
+      <div className="mt-4 px-4 print:hidden flex justify-center">
+        <Button onClick={handlePrint} className="w-full max-w-[320px]">
+          <Printer className="mr-2 h-4 w-4" />
+          Print Receipt
+        </Button>
+      </div>
+
+      <style jsx>{`
+        @media print {
+          body {
+            margin: 0;
+            padding: 0;
+          }
+          .receipt-paper {
+            width: 80mm;
+            margin: 0;
+            padding: 5mm;
+            font-size: 10px;
+          }
+        }
+
+        .receipt-paper {
+          background: linear-gradient(
+            to bottom,
+            #ffffff 0%,
+            #ffffff 98%,
+            #f5f5f5 100%
+          );
+          position: relative;
+        }
+
+        .receipt-paper::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: repeating-linear-gradient(
+            to right,
+            transparent 0px,
+            transparent 3px,
+            #ddd 3px,
+            #ddd 6px
+          );
+        }
+      `}</style>
     </div>
   );
 }

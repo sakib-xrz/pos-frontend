@@ -55,7 +55,7 @@ export default function StaffLayout({
           <Button
             variant="outline"
             size="icon"
-            className="fixed top-3 right-4 z-40"
+            className="fixed top-3 right-4 z-40 print:hidden"
           >
             <Menu className="h-4 w-4" />
           </Button>
