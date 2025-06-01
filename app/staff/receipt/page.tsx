@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,58 +12,31 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { Printer, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-
-// Dummy order data
-const dummyOrder = {
-  id: "order123",
-  total_amount: 32.97,
-  status: "PAID",
-  payment_type: "CASH",
-  table_number: "12",
-  note: "No onions please",
-  created_by: "user-id",
-  created_at: "2023-05-23T12:34:56Z",
-  order_items: [
-    {
-      id: "item1",
-      product_id: "1",
-      name: "Cheeseburger",
-      price: 8.99,
-      quantity: 2,
-    },
-    {
-      id: "item2",
-      product_id: "8",
-      name: "French Fries",
-      price: 3.99,
-      quantity: 1,
-    },
-    { id: "item3", product_id: "6", name: "Soda", price: 2.99, quantity: 2 },
-  ],
-};
+import { useGetOrderQuery } from "@/redux/features/order/orderApi";
+import { useGetSettingsQuery } from "@/redux/features/settings/settingsApi";
 
 export default function ReceiptPage() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
-  const [order, setOrder] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Simulate API call to fetch order
-    const fetchOrder = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setOrder(dummyOrder);
-      setLoading(false);
-    };
+  const { data: orderResponse, isLoading: isOrderLoading } = useGetOrderQuery(
+    orderId,
+    {
+      skip: !orderId,
+    }
+  );
+  const order = orderResponse?.data;
 
-    fetchOrder();
-  }, [orderId]);
+  const { data: settingsResponse } = useGetSettingsQuery(undefined, {
+    skip: !orderId,
+  });
+  const settings = settingsResponse?.data;
 
   const handlePrint = () => {
     window.print();
   };
 
-  if (loading) {
+  if (isOrderLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -87,10 +59,12 @@ export default function ReceiptPage() {
     );
   }
 
-  const subtotal = order.order_items.reduce(
-    (total: number, item: any) => total + item.price * item.quantity,
-    0
-  );
+  const subtotal =
+    order.order_items?.reduce(
+      (total: number, item: any) =>
+        total + parseFloat(item.price) * item.quantity,
+      0
+    ) || 0;
   const tax = subtotal * 0.1;
   const total = subtotal + tax;
 
@@ -107,21 +81,32 @@ export default function ReceiptPage() {
 
       <Card className="border-2">
         <CardHeader className="text-center border-b">
-          <CardTitle>Receipt</CardTitle>
+          <CardTitle>{settings?.receipt_header_text || "Receipt"}</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="text-center mb-6">
-            <h2 className="text-xl font-bold">Restaurant Name</h2>
+            {settings?.show_logo_on_receipt && settings?.logo_url && (
+              <img
+                src={settings.logo_url}
+                alt={settings.display_name || "Restaurant Logo"}
+                className="h-16 w-auto mx-auto mb-2"
+              />
+            )}
+            <h2 className="text-xl font-bold">
+              {settings?.display_name || "Restaurant Name"}
+            </h2>
             <p className="text-sm text-muted-foreground">
-              123 Main Street, City
+              {settings?.address || "123 Main Street, City"}
             </p>
-            <p className="text-sm text-muted-foreground">Tel: (123) 456-7890</p>
+            <p className="text-sm text-muted-foreground">
+              Tel: {settings?.phone_number || "(123) 456-7890"}
+            </p>
           </div>
 
           <div className="mb-6 text-sm">
             <div className="flex justify-between">
-              <span>Order #:</span>
-              <span>{order.id}</span>
+              <span>Order ID:</span>
+              <span>#{order.order_number}</span>
             </div>
             <div className="flex justify-between">
               <span>Date:</span>
@@ -141,12 +126,14 @@ export default function ReceiptPage() {
 
           <div className="border-t border-b py-4 mb-4">
             <div className="font-medium mb-2">Items</div>
-            {order.order_items.map((item: any) => (
+            {order.order_items?.map((item: any) => (
               <div key={item.id} className="flex justify-between text-sm py-1">
                 <span>
-                  {item.quantity} x {item.name}
+                  {item.quantity} x {item.product?.name || "Unknown Item"}
                 </span>
-                <span>{formatCurrency(item.price * item.quantity)}</span>
+                <span>
+                  {formatCurrency(parseFloat(item.price) * item.quantity)}
+                </span>
               </div>
             ))}
           </div>
@@ -174,8 +161,10 @@ export default function ReceiptPage() {
           )}
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Thank you for your order!</p>
-            <p>Please come again</p>
+            <p>
+              {settings?.receipt_footer_text ||
+                "Thank you for your order! Please come again"}
+            </p>
           </div>
         </CardContent>
         <CardFooter className="print:hidden">
